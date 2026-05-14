@@ -2,6 +2,7 @@ package com.aguirre.pulsealert.data.remote
 
 import android.util.Log
 import com.aguirre.pulsealert.core.AppConfig
+import io.socket.client.Ack
 import io.socket.client.IO
 import io.socket.client.Socket
 import kotlinx.coroutines.channels.Channel
@@ -75,7 +76,7 @@ class SocketDataSource(
 
     private var socket: Socket? = null
 
-    // ── Flows de eventos entrantes ────────────────────────────────────
+    // —— Flows de eventos entrantes ————————
     // SharedFlow con replay=0: solo emite a suscriptores activos.
     // El ForegroundService se suscribe antes de conectar, así no pierde nada.
 
@@ -101,7 +102,7 @@ class SocketDataSource(
      *
      * El handshake incluye:
      *  - clientType: identifica a este cliente como dispositivo Android.
-     *  - apiKey: clave secreta que el servidor valida.
+     *  - apiKey: clave secreta que el servidor válida.
      *
      * Una vez conectado, registra el dispositivo con REGISTER_DEVICE.
      */
@@ -184,7 +185,7 @@ class SocketDataSource(
             put("appVersion", appVersion)
         }
 
-        socket.emit(SocketEvents.Outgoing.REGISTER_DEVICE, payload) { args ->
+        socket.emit(SocketEvents.Outgoing.REGISTER_DEVICE, payload, Ack { args ->
             val response = args?.firstOrNull() as? JSONObject
             val status = response?.optString("status")
 
@@ -194,7 +195,7 @@ class SocketDataSource(
                 val reason = response?.optString("reason") ?: "sin motivo"
                 Log.e(TAG, "Error en REGISTER_DEVICE: $reason")
             }
-        }
+        })
     }
 
     // ── Listeners de eventos entrantes ────────────────────────────────
