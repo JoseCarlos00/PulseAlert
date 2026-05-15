@@ -3,13 +3,13 @@ package com.aguirre.pulsealert.data.repository
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
-import com.tuempresa.alertnode.data.local.AppPreferences
-import com.tuempresa.alertnode.data.local.MessageDao
-import com.tuempresa.alertnode.data.local.MessageEntity
-import com.tuempresa.alertnode.data.remote.AlarmEvent
-import com.tuempresa.alertnode.data.remote.ConnectionState
-import com.tuempresa.alertnode.data.remote.MessageEvent
-import com.tuempresa.alertnode.data.remote.SocketDataSource
+import com.aguirre.pulsealert.data.local.AppPreferences
+import com.aguirre.pulsealert.data.local.MessageDao
+import com.aguirre.pulsealert.data.local.MessageEntity
+import com.aguirre.pulsealert.data.remote.AlarmEvent
+import com.aguirre.pulsealert.data.remote.ConnectionState
+import com.aguirre.pulsealert.data.remote.MessageEvent
+import com.aguirre.pulsealert.data.remote.SocketDataSource
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -40,7 +40,7 @@ class DeviceRepository(
     private val socketDataSource: SocketDataSource
 ) {
 
-    // ── Configuración (DataStore) ─────────────────────────────────────
+    // —— Configuración (DataStore) ———
     // Expuestos como Flow de solo lectura.
     // Los ViewModels observan estos Flows directamente.
 
@@ -71,7 +71,7 @@ class DeviceRepository(
      */
     val connectionState: Flow<ConnectionState> = socketDataSource.connectionState
 
-    // ── Eventos del socket ────────────────────────────────────────────
+    // ——— Eventos del socket ———
     // El ForegroundService se suscribe a estos Flows para reaccionar
     // a los eventos entrantes del servidor.
 

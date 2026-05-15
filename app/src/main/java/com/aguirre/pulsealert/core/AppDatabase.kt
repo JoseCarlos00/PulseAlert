@@ -55,7 +55,7 @@ abstract class AppDatabase : RoomDatabase() {
                 )
                     // Solo para desarrollo. Antes de producción reemplazar
                     // por migraciones reales con addMigrations(...).
-                    .fallbackToDestructiveMigration()
+                    .fallbackToDestructiveMigration(false)
                     .build()
 
                 INSTANCE = instance

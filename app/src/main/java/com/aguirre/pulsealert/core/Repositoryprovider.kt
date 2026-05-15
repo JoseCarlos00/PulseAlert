@@ -1,12 +1,14 @@
 package com.aguirre.pulsealert.core
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.provider.Settings
 import com.aguirre.pulsealert.data.local.AppPreferences
 import com.aguirre.pulsealert.data.remote.SocketDataSource
-import com.aguirre.pulsealert.repository.DeviceRepository
+import com.aguirre.pulsealert.data.repository.DeviceRepository
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import java.util.Locale
 
 /**
  * Singleton manual que construye y provee DeviceRepository.
@@ -61,6 +63,7 @@ object RepositoryProvider {
 
         // androidId es el identificador único del dispositivo.
         // Es estable mientras no se haga factory reset.
+        @SuppressLint("HardwareIds")
         val androidId = Settings.Secure.getString(
             context.contentResolver,
             Settings.Secure.ANDROID_ID
@@ -108,6 +111,7 @@ object RepositoryProvider {
             val ip = wifiManager.connectionInfo.ipAddress
             // Convierte el entero a formato "192.168.x.x"
             String.format(
+                Locale.US,
                 "%d.%d.%d.%d",
                 ip and 0xff,
                 ip shr 8 and 0xff,
