@@ -3,7 +3,9 @@ package com.aguirre.pulsealert.service
 import android.app.Service
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.ServiceInfo
 import android.os.BatteryManager
+import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import com.aguirre.pulsealert.core.AppConfig
@@ -70,13 +72,19 @@ class SocketForegroundService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.d(TAG, "onStartCommand")
 
-        // Lanza la notificación persistente e inicia el ForegroundService.
-        // DEBE llamarse antes de 5 segundos desde onCreate() o Android
-        // matará el servicio con ANR.
-        startForeground(
-            NOTIF_ID_FOREGROUND,
-            notificationHelper.buildForegroundNotification(isConnected = false)
-        )
+        val notification = notificationHelper.buildForegroundNotification(isConnected = false)
+
+        // Android 14+ requiere especificar el tipo de servicio en la llamada a startForeground.
+        // Debe coincidir con lo declarado en el AndroidManifest.xml.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(
+                NOTIF_ID_FOREGROUND,
+                notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
+            )
+        } else {
+            startForeground(NOTIF_ID_FOREGROUND, notification)
+        }
 
         // Conecta el socket
         repository.connectSocket()
@@ -96,8 +104,7 @@ class SocketForegroundService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        Log.d(TAG, "onDestroy — desconectando socket")
-
+        Log.d(TAG, "onDestroy")
         alarmPlayer.stop()
         repository.disconnectSocket()
         heartbeatJob?.cancel()
@@ -127,14 +134,7 @@ class SocketForegroundService : Service() {
     private fun observeAlarmEvents() {
         repository.alarmEvents
             .onEach { event ->
-                Log.d(TAG, "ALARM_ACTIVATE recibido: $event")
-
-                if (alarmPlayer.isPlaying()) {
-                    Log.w(TAG, "Alarma ignorada: ya hay un sonido activo")
-                    // El ACK de error lo maneja SocketDataSource directamente
-                    return@onEach
-                }
-
+                if (alarmPlayer.isPlaying()) return@onEach
                 alarmPlayer.playAlarm(durationSeconds = event.durationSeconds)
                 notificationHelper.showAlarmNotification(event.deviceAlias)
             }
@@ -154,12 +154,7 @@ class SocketForegroundService : Service() {
 
                 // Guarda en Room (MessagesScreen se actualiza sola)
                 repository.saveMessage(event)
-
-                // Notificación push que abre MessagesScreen al tocarla
-                notificationHelper.showMessageNotification(
-                    sender  = event.sender,
-                    message = event.message
-                )
+                notificationHelper.showMessageNotification(event.sender, event.message)
             }
             .launchIn(serviceScope)
     }
@@ -172,13 +167,7 @@ class SocketForegroundService : Service() {
     private fun observePingEvents() {
         repository.pingEvents
             .onEach {
-                Log.d(TAG, "PING recibido — reproduciendo ping")
-
-                if (alarmPlayer.isPlaying()) {
-                    Log.w(TAG, "Ping ignorado: ya hay un sonido activo")
-                    return@onEach
-                }
-
+                if (alarmPlayer.isPlaying()) return@onEach
                 alarmPlayer.playPing()
 
                 // Espera los 3 segundos del sonido antes de responder PONG
@@ -199,11 +188,7 @@ class SocketForegroundService : Service() {
      */
     private fun observeCheckUpdateEvents() {
         repository.checkUpdateEvents
-            .onEach {
-                Log.d(TAG, "CHECK_FOR_UPDATE recibido")
-                // TODO: implementar lógica de actualización interna
-                // Ej: mostrar notificación con enlace a la nueva APK
-            }
+            .onEach { Log.d(TAG, "CHECK_FOR_UPDATE recibido") }
             .launchIn(serviceScope)
     }
 
@@ -231,24 +216,12 @@ class SocketForegroundService : Service() {
      * Devuelve un par (porcentaje: Int, cargando: Boolean).
      */
     private fun getBatteryInfo(): Pair<Int, Boolean> {
-        val intent = registerReceiver(
-            null,
-            IntentFilter(Intent.ACTION_BATTERY_CHANGED)
-        )
-
+        val intent = registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
         val level = intent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
         val scale = intent?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
         val status = intent?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
-
-        val batteryPct = if (level >= 0 && scale > 0) {
-            (level * 100 / scale)
-        } else {
-            -1
-        }
-
-        val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
-                status == BatteryManager.BATTERY_STATUS_FULL
-
-        return Pair(batteryPct, isCharging)
+        val pct = if (level >= 0 && scale > 0) (level * 100 / scale) else -1
+        val charging = status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL
+        return Pair(pct, charging)
     }
 }

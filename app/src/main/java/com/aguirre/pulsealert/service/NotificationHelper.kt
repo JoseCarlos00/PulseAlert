@@ -28,9 +28,9 @@ class NotificationHelper(private val context: Context) {
 
     companion object {
         // IDs de canales
-        const val CHANNEL_FOREGROUND = "alertnode_foreground"
-        const val CHANNEL_ALARM      = "alertnode_alarm"
-        const val CHANNEL_MESSAGE    = "alertnode_message"
+        const val CHANNEL_FOREGROUND = "pulsealert_foreground"
+        const val CHANNEL_ALARM      = "pulsealert_alarm"
+        const val CHANNEL_MESSAGE    = "pulsealert_message"
 
         // IDs de notificaciones
         const val NOTIF_ID_FOREGROUND = 1
@@ -169,7 +169,6 @@ class NotificationHelper(private val context: Context) {
      * por lo que es seguro llamarla múltiples veces.
      */
     private fun createChannels() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
 
         val channels = listOf(
             NotificationChannel(
