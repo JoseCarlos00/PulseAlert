@@ -52,55 +52,67 @@ fun HomeScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(
-            text = "Estado del dispositivo",
-            style = MaterialTheme.typography.headlineSmall
-        )
-
-        Spacer(Modifier.size(2.dp))
-
-        // ── Tarjeta de conexión ───────────────────────────────────────
-        ConnectionCard(state = uiState.connectionState)
-
-        // ── Tarjeta de información ────────────────────────────────────
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant
-            )
+        // ── Parte superior ─────────────────────────────
+        Column(
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                InfoRow(
-                    icon  = Icons.Outlined.Tag,
-                    label = "Alias",
-                    value = uiState.deviceAlias
-                )
-                InfoRow(
-                    icon  = Icons.Outlined.Router,
-                    label = "IP local",
-                    value = uiState.ipAddress
-                )
-                InfoRow(
-                    icon  = Icons.Outlined.Fingerprint,
-                    label = "Android ID",
-                    value = uiState.androidId
-                )
-                InfoRow(
-                    icon  = Icons.Outlined.PhoneAndroid,
-                    label = "Versión de app",
-                    value = uiState.appVersion
-                )
-            }
+            Text(
+                text = "Estado del dispositivo",
+                style = MaterialTheme.typography.headlineSmall
+            )
+
+            // ── Tarjeta de conexión ───────────────────────────────────────
+            ConnectionCard(state = uiState.connectionState)
         }
 
-        Spacer(Modifier.size(4.dp))
+        // ── Parte central (scrollable) ─────────────────
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(vertical = 16.dp),
+            verticalArrangement = Arrangement.Center
+        ) {
+            // ── Tarjeta de información ────────────────────────────────────
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    InfoRow(
+                        icon = Icons.Outlined.Tag,
+                        label = "Alias",
+                        value = uiState.deviceAlias
+                    )
+
+                    InfoRow(
+                        icon = Icons.Outlined.Router,
+                        label = "IP local",
+                        value = uiState.ipAddress
+                    )
+
+                    InfoRow(
+                        icon = Icons.Outlined.Fingerprint,
+                        label = "Android ID",
+                        value = uiState.androidId
+                    )
+
+                    InfoRow(
+                        icon = Icons.Outlined.PhoneAndroid,
+                        label = "Versión de app",
+                        value = uiState.appVersion
+                    )
+                }
+            }
+        }
 
         // ── Botón de reconexión manual ────────────────────────────────
         Button(
@@ -170,7 +182,10 @@ private fun InfoRow(
             modifier = Modifier.size(20.dp),
             tint = MaterialTheme.colorScheme.primary
         )
-        Column {
+        Column(
+            modifier = Modifier.padding(vertical = 2.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelSmall,
@@ -178,7 +193,7 @@ private fun InfoRow(
             )
             Text(
                 text = value,
-                style = MaterialTheme.typography.bodyMedium
+                style = MaterialTheme.typography.bodyLarge
             )
         }
     }
