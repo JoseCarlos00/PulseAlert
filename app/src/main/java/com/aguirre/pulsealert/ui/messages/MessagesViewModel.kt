@@ -5,8 +5,11 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.aguirre.pulsealert.core.RepositoryProvider
 import com.aguirre.pulsealert.data.local.MessageEntity
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -15,12 +18,14 @@ class MessagesViewModel(application: Application) : AndroidViewModel(application
     private val repository = RepositoryProvider.get(application)
 
     /**
-     * Lista de mensajes como StateFlow.
-     * stateIn convierte el Flow de Room en un StateFlow que Compose puede
-     * observar. SharingStarted.WhileSubscribed(5000) mantiene el Flow activo
-     * 5 segundos después de que no haya suscriptores — evita recargar Room
-     * en rotaciones de pantalla.
+     * Usamos un Channel para eventos de navegación "one-shot".
+     * El buffer CONFLATED asegura que si llegan varios, solo procesamos el último,
+     * pero a diferencia del SharedFlow, el Channel mantendrá el evento hasta
+     * que AppNavigation empiece a escucharlo (evita la race condition al abrir la app).
      */
+    private val _navigationChannel = Channel<String>(capacity = Channel.CONFLATED)
+    val navigationRequest: Flow<String> = _navigationChannel.receiveAsFlow()
+
     val messages: StateFlow<List<MessageEntity>> = repository.allMessages
         .stateIn(
             scope = viewModelScope,
@@ -39,9 +44,14 @@ class MessagesViewModel(application: Application) : AndroidViewModel(application
         )
 
     /**
-     * Marca todos como leídos al abrir la pantalla.
-     * Se llama desde LaunchedEffect en MessagesScreen.
+     * Solicita una navegación. Se llama desde MainActivity.
      */
+    fun triggerNavigation(route: String) {
+        viewModelScope.launch {
+            _navigationChannel.send(route)
+        }
+    }
+
     fun markAllAsRead() {
         viewModelScope.launch {
             repository.markAllMessagesAsRead()
