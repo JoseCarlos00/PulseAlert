@@ -10,13 +10,18 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.ViewModelProvider
 import com.aguirre.pulsealert.core.AppNavigation
+import com.aguirre.pulsealert.core.Screen
 import com.aguirre.pulsealert.service.NotificationHelper.Companion.EXTRA_NAVIGATE_TO
 import com.aguirre.pulsealert.service.NotificationHelper.Companion.NAV_MESSAGES
 import com.aguirre.pulsealert.service.SocketForegroundService
+import com.aguirre.pulsealert.ui.messages.MessagesViewModel
 import com.aguirre.pulsealert.ui.theme.PulseAlertTheme
 
 class MainActivity : ComponentActivity() {
+
+    private lateinit var messagesViewModel: MessagesViewModel
 
     /**
      * Launcher para solicitar múltiples permisos de una vez.
@@ -39,6 +44,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        // Obtenemos el ViewModel de la Activity para compartirlo con el sistema de navegación
+        messagesViewModel = ViewModelProvider(this)[MessagesViewModel::class.java]
+
         setContent {
             PulseAlertTheme {
                 AppNavigation()
@@ -49,6 +57,9 @@ class MainActivity : ComponentActivity() {
         // la primera vez. En aperturas posteriores isGranted() devuelve
         // true y no se vuelve a mostrar nada.
         requestRequiredPermissions()
+
+        // Manejar el intent de apertura (app cerrada)
+        handleIntent(intent)
     }
 
     /**
@@ -65,25 +76,22 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * Maneja el deep link cuando el usuario toca una notificación push
-     * con la app ya abierta (launchMode="singleTop" en el Manifest).
-     *
-     * Android llama onNewIntent() en lugar de recrear la Activity
-     * cuando llega un Intent con FLAG_ACTIVITY_SINGLE_TOP.
-     *
-     * Por ahora loga el Intent — la navegación real al abrir desde
-     * notificación se puede implementar con un SharedFlow en AppNavigation
-     * cuando lo necesites.
+     * Maneja el intent cuando la app ya está abierta en segundo plano.
      */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        val navigateTo = intent.getStringExtra(EXTRA_NAVIGATE_TO)
+        setIntent(intent) // Actualiza el intent de la activity
+        handleIntent(intent)
+    }
+
+    /**
+     * Procesa el Intent para disparar la navegación si viene de una notificación.
+     */
+    private fun handleIntent(intent: Intent?) {
+        val navigateTo = intent?.getStringExtra(EXTRA_NAVIGATE_TO)
         if (navigateTo == NAV_MESSAGES) {
-            // TODO: navegar a MessagesScreen programáticamente.
-            // Para implementarlo completamente, sube el NavController
-            // a un ViewModel compartido o usa un StateFlow en AppNavigation
-            // que MainActivity pueda escribir.
-            android.util.Log.d("MainActivity", "Deep link → MessagesScreen")
+            android.util.Log.d("MainActivity", "Navegando a Mensajes vía Deep Link")
+            messagesViewModel.triggerNavigation(Screen.Messages.route)
         }
     }
 
@@ -107,7 +115,6 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
-
         if (toRequest.isNotEmpty()) {
             permissionLauncher.launch(toRequest.toTypedArray())
         }
