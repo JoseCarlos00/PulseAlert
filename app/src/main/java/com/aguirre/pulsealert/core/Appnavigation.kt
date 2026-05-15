@@ -10,6 +10,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -28,25 +29,28 @@ import com.aguirre.pulsealert.ui.settings.SettingsScreen
 
 /**
  * Composable raíz de la navegación.
- * Se llama una sola vez desde MainActivity.
- *
- * Contiene:
- *  - Scaffold con BottomNavigationBar
- *  - NavHost con las tres pantallas
- *
- * El NavController vive aquí y se pasa hacia abajo solo cuando
- * una pantalla necesita navegar a otra (ej. notificación → Messages).
  */
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
 
-    // MessagesViewModel se crea aquí para que el unreadCount
-    // esté disponible en la BottomBar sin importar qué pantalla
-    // esté activa. El mismo ViewModel es reutilizado por MessagesScreen
-    // porque Compose los comparte dentro del mismo NavBackStackEntry.
+    // El ViewModel se asocia a la Activity por defecto al llamarse desde aquí.
     val messagesViewModel: MessagesViewModel = viewModel()
     val unreadCount by messagesViewModel.unreadCount.collectAsStateWithLifecycle()
+
+    // Escucha peticiones de navegación (ej. desde notificaciones push)
+    LaunchedEffect(messagesViewModel) {
+        messagesViewModel.navigationRequest.collect { route ->
+            navController.navigate(route) {
+                // Evita duplicados y limpia el stack hasta el inicio
+                popUpTo(navController.graph.findStartDestination().id) {
+                    saveState = true
+                }
+                launchSingleTop = true
+                restoreState    = true
+            }
+        }
+    }
 
     Scaffold(
         bottomBar = {
