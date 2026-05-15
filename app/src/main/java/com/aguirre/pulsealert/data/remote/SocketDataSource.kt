@@ -1,11 +1,9 @@
 package com.aguirre.pulsealert.data.remote
 
 import android.util.Log
-import com.aguirre.pulsealert.core.AppConfig
 import io.socket.client.Ack
 import io.socket.client.IO
 import io.socket.client.Socket
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -73,12 +71,7 @@ class SocketDataSource(
     private val appVersion: String,
     private val ipAddress: String
 ) {
-
     private var socket: Socket? = null
-
-    // —— Flows de eventos entrantes ————————
-    // Usamos extraBufferCapacity=64 para que tryEmit() sea fiable incluso
-    // si el colector está momentáneamente ocupado o procesando.
 
     private val _connectionState = MutableSharedFlow<ConnectionState>(replay = 1)
     val connectionState: Flow<ConnectionState> = _connectionState.asSharedFlow()
@@ -107,10 +100,7 @@ class SocketDataSource(
      * Una vez conectado, registra el dispositivo con REGISTER_DEVICE.
      */
     fun connect() {
-        if (socket?.connected() == true) {
-            Log.d(TAG, "Ya conectado, ignorando llamada a connect()")
-            return
-        }
+        if (socket?.connected() == true) return
 
         try {
             val options = IO.Options.builder()
@@ -121,17 +111,20 @@ class SocketDataSource(
                 .setReconnectionDelayMax(30000)   // máximo 30s de espera
                 .build()
 
-            socket = IO.socket(URI.create(serverUrl), options).apply {
-                registerConnectionListeners(this)
-                registerIncomingEventListeners(this)
-                connect()
-            }
+            val newSocket = IO.socket(URI.create(serverUrl), options)
+            newSocket.off() 
+
+            registerConnectionListeners(newSocket)
+            registerIncomingEventListeners(newSocket)
+            
+            socket = newSocket
+            socket?.connect()
 
             _connectionState.tryEmit(ConnectionState.CONNECTING)
-            Log.d(TAG, "Intentando conectar a $serverUrl")
+            Log.d(TAG, "Conectando a $serverUrl...")
 
         } catch (e: Exception) {
-            Log.e(TAG, "Error al crear el socket: ${e.message}")
+            Log.e(TAG, "Error al configurar socket: ${e.message}")
             _connectionState.tryEmit(ConnectionState.ERROR)
         }
     }
@@ -150,7 +143,6 @@ class SocketDataSource(
     // ── Listeners de conexión ─────────────────────────────────────────
 
     private fun registerConnectionListeners(socket: Socket) {
-
         socket.on(Socket.EVENT_CONNECT) {
             Log.d(TAG, "Conectado al servidor")
             _connectionState.tryEmit(ConnectionState.CONNECTED)
@@ -201,89 +193,82 @@ class SocketDataSource(
     // ── Listeners de eventos entrantes ────────────────────────────────
 
     private fun registerIncomingEventListeners(socket: Socket) {
-
+        
         // ALARM_ACTIVATE
         socket.on(SocketEvents.Incoming.ALARM_ACTIVATE) { args ->
-            val payload = args?.firstOrNull() as? JSONObject
+            try {
+                val payload = args?.firstOrNull() as? JSONObject
+                val ack = args?.lastOrNull() as? Ack
 
-            // El payload es opcional según la documentación.
-            val event = if (payload != null) {
-                AlarmEvent(
-                    durationSeconds = payload.optInt("durationSeconds", 10),
-                    deviceAlias = payload.optString("deviceAlias", "desconocido")
+                Log.d(TAG, "ALARM_ACTIVATE recibido: ${payload?.toString()}")
+                
+                // Extraer como Double para manejar decimales (0.2, etc)
+                val rawDuration = payload?.optDouble("durationSeconds", 10.0) ?: 10.0
+                
+                val finalDuration = when {
+                    rawDuration == 0.0 -> 0 // Infinito
+                    rawDuration > 0.0 && rawDuration < 1.0 -> 1 // Mínimo 1 segundo para decimales positivos
+                    rawDuration > 10.0 -> 10 // Si hay más de 10 segundos, usar 10 segundos
+                    rawDuration < 0.0 -> 10 // Default para negativos
+                    else -> rawDuration.toInt() // Trunca decimales mayores a 1 (ej: 5.5 -> 5)
+                }
+
+                Log.d(TAG, "ALARM_ACTIVATE procesado: raw=$rawDuration -> final=$finalDuration")
+
+                val event = AlarmEvent(
+                    durationSeconds = finalDuration,
+                    deviceAlias = payload?.optString("deviceAlias", "desconocido") ?: "desconocido"
                 )
-            } else {
-                AlarmEvent() // valores por defecto
+                
+                _alarmEvents.tryEmit(event)
+                ack?.call(JSONObject().put("status", "OK"))
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Error procesando ALARM_ACTIVATE: ${e.message}")
             }
-
-            Log.d(TAG, "ALARM_ACTIVATE recibido: $event")
-            _alarmEvents.tryEmit(event)
-
-            // Responde al servidor con ACK { status: "OK" }
-            // El callback está en el último argumento si el servidor lo envió.
-            val ack = args?.lastOrNull()
-            if (ack is io.socket.emitter.Emitter.Listener) {
-                // Socket.IO Android maneja el ACK automáticamente si el
-                // servidor lo envía con callback. Ver nota abajo (*)
-            }
-        }
-
-        // PING
-        socket.on(SocketEvents.Incoming.PING) { args ->
-            Log.d(TAG, "PING recibido")
-            _pingEvents.tryEmit(Unit)
-
-            // El servidor espera { status: "PONG" } después de 3 segundos.
-            // El ForegroundService se encarga del delay y de enviar la respuesta
-            // a través de sendPong(), para no bloquear este hilo de callback.
         }
 
         // MESSAGE_RECEIVE
         socket.on(SocketEvents.Incoming.MESSAGE_RECEIVE) { args ->
-            val ack = args?.lastOrNull() as? Ack
-            val payload = args?.firstOrNull() as? JSONObject ?: return@on
+            try {
+                val payload = args?.firstOrNull() as? JSONObject ?: return@on
+                val message = payload.optString("message", "")
 
-            val message = payload.optString("message", "")
-            if (message.isBlank()) {
-                Log.w(TAG, "MESSAGE_RECEIVE recibido con mensaje vacío")
-                return@on
+                if (message.isBlank()) {
+                    Log.w(TAG, "MESSAGE_RECEIVE recibido con mensaje vacío")
+                    return@on
+                }
+                    val event = MessageEvent(
+                        message = message,
+                        sender = payload.optString("sender", "Panel Control")
+                    )
+                    _messageEvents.tryEmit(event)
+
+                val ack = args.lastOrNull() as? Ack
+                ack?.call(JSONObject().put("status", "OK"))
+            } catch (e: Exception) {
+                Log.e(TAG, "Error procesando MESSAGE_RECEIVE: ${e.message}")
             }
-
-            val event = MessageEvent(
-                message = message,
-                sender = payload.optString("sender", "Nuevo Mensaje")
-            )
-
-            val response = JSONObject()
-            response.put("status", "OK")
-
-            Log.d(TAG, "MESSAGE_RECEIVE: ${event.sender} → ${event.message}")
-
-            _messageEvents.tryEmit(event)
-            ack?.call(response)
-        }
-
-        // CHECK_FOR_UPDATE
-        socket.on(SocketEvents.Incoming.CHECK_FOR_UPDATE) {
-            Log.d(TAG, "CHECK_FOR_UPDATE recibido")
-            _checkUpdateEvents.tryEmit(Unit)
         }
 
         // GET_DEVICE_INFO
-        // El servidor espera el mismo payload que REGISTER_DEVICE.
-        // Respondemos directamente aquí porque no necesita lógica externa.
         socket.on(SocketEvents.Incoming.GET_DEVICE_INFO) { args ->
-            Log.d(TAG, "GET_DEVICE_INFO recibido")
-            val response = JSONObject().apply {
-                put("androidId", androidId)
-                put("ipAddress", ipAddress)
-                put("appVersion", appVersion)
+            try {
+                val ack = args?.lastOrNull() as? Ack
+                val response = JSONObject().apply {
+                    put("androidId", androidId)
+                    put("ipAddress", ipAddress)
+                    put("appVersion", appVersion)
+                    put("deviceAlias", deviceAlias)
+                }
+                ack?.call(response)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error en GET_DEVICE_INFO: ${e.message}")
             }
-            // El ACK se envía emitiendo de vuelta al callback del servidor.
-            // La librería Socket.IO Android lo maneja si el último arg es un Ack.
-            val ack = args?.lastOrNull() as? io.socket.client.Ack
-            ack?.call(response)
         }
+
+        socket.on(SocketEvents.Incoming.PING) { _pingEvents.tryEmit(Unit) }
+        socket.on(SocketEvents.Incoming.CHECK_FOR_UPDATE) { _checkUpdateEvents.tryEmit(Unit) }
     }
 
     // ── Emisión de eventos ────────────────────────────────────────────
@@ -293,17 +278,13 @@ class SocketDataSource(
      * Llamado cada AppConfig.HEARTBEAT_INTERVAL_MS por el ForegroundService.
      */
     fun sendHeartbeat(battery: Int, charging: Boolean) {
-        if (socket?.connected() != true) return
-
         val payload = JSONObject().apply {
             put("deviceId", androidId)
             put("battery", battery)
             put("charging", charging)
             put("timestamp", System.currentTimeMillis())
         }
-
         socket?.emit(SocketEvents.Outgoing.HEARTBEAT, payload)
-        Log.d(TAG, "HEARTBEAT enviado: batería $battery% charging=$charging")
     }
 
     /**
@@ -311,15 +292,9 @@ class SocketDataSource(
      * El ForegroundService llama esto después de reproducir el sonido (3s delay).
      */
     fun sendPong() {
-        if (socket?.connected() != true) return
-        // El PONG se envía como respuesta al ACK del PING.
-        // Implementación pendiente: requiere guardar la referencia al Ack
-        // del evento PING. Se completará en ForegroundService.
+        socket?.emit("PONG", JSONObject().put("status", "PONG"))
         Log.d(TAG, "sendPong() llamado")
     }
 
-    /**
-     * Devuelve true si el socket está actualmente conectado.
-     */
     fun isConnected(): Boolean = socket?.connected() == true
 }
