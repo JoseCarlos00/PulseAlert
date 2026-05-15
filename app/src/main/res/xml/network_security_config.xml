@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Configuración de seguridad de red.
+    Permite tráfico HTTP (no cifrado) en rangos de IP de red local.
+
+    Android 9+ bloquea HTTP por defecto. Sin este archivo el socket
+    nunca conecta porque la app silenciosamente descarta las peticiones
+    HTTP antes de que lleguen al servidor.
+
+    Solo se permiten rangos privados (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
+    — no se habilita HTTP para internet en general.
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <!-- Red local clase C — el rango más común en routers domésticos -->
+        <domain includeSubdomains="true">192.168.0.0</domain>
+        <domain includeSubdomains="true">192.168.1.0</domain>
+        <domain includeSubdomains="true">192.168.15.0</domain>
+        <domain includeSubdomains="true">192.168.14.0</domain>
+        <domain includeSubdomains="true">192.168.13.0</domain>
+        <domain includeSubdomains="true">192.168.12.0</domain>
+
+        <!-- Red local clase A — usado en algunas empresas -->
+        <domain includeSubdomains="true">10.0.0.0</domain>
+        <!-- localhost para pruebas con emulador -->
+        <domain includeSubdomains="true">localhost</domain>
+        <domain includeSubdomains="true">10.0.2.2</domain>
+    </domain-config>
+</network-security-config>
