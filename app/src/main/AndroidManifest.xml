@@ -2,12 +2,23 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Permisos necesarios -->
+    <!-- Conexión de red para Socket.IO -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+
+    <!-- ForegroundService -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+
+    <!-- Notificaciones push (requerido en Android 13+) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!--
+        WAKE_LOCK: evita que el CPU se suspenda mientras suena la alarma.
+        Sin esto, el MediaPlayer puede pausarse si el dispositivo entra
+        en modo de bajo consumo durante la reproducción.
+    -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <application
         android:allowBackup="true"
@@ -22,14 +33,26 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.PulseAlert">
+            android:theme="@style/Theme.PulseAlert"
+            android:launchMode="singleTop">
+            <!--
+                singleTop: si la app ya está abierta y llega un Intent
+                desde una notificación push, Android reutiliza la misma
+                instancia de MainActivity en lugar de crear una nueva.
+                Esto es necesario para que el deep link a MessagesScreen
+                funcione correctamente desde NotificationHelper.
+            -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
 
-        <!-- Declaración del Servicio con su tipo -->
+        <!--
+            ForegroundService con tipo connectedDevice.
+            android:exported="false" — solo puede ser iniciado desde
+            dentro de la misma app, no por otras aplicaciones.
+        -->
         <service
             android:name=".service.SocketForegroundService"
             android:foregroundServiceType="connectedDevice"
