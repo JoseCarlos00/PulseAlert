@@ -114,6 +114,7 @@ class SocketForegroundService : Service() {
         repository.alarmEvents
             .onEach { event ->
                 Log.d(TAG, "ALARM_ACTIVATE recibido: ${event.deviceAlias}")
+                Log.d(TAG, "  Duración: ${event.durationSeconds} segundos")
                 if (alarmPlayer.isPlaying()) return@onEach
                 alarmPlayer.playAlarm(durationSeconds = event.durationSeconds)
                 notificationHelper.showAlarmNotification(event.deviceAlias)
