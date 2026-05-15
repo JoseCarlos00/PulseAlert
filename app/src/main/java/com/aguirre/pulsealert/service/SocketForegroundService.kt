@@ -16,6 +16,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -25,26 +26,6 @@ private const val TAG = "SocketForegroundService"
 
 /**
  * Servicio que mantiene la conexión Socket.IO activa en background.
- *
- * Al ser un ForegroundService, Android lo trata con alta prioridad
- * y no lo mata por falta de memoria mientras muestre una notificación
- * persistente — que es exactamente lo que hace buildForegroundNotification().
- *
- * Ciclo de vida:
- *  onCreate()       → inicializa dependencias
- *  onStartCommand() → conecta el socket y lanza las coroutines
- *  onDestroy()      → desconecta y cancela todo limpiamente
- *
- * Coroutines:
- *  El servicio tiene su propio CoroutineScope con SupervisorJob.
- *  SupervisorJob garantiza que si una coroutine falla, las demás
- *  siguen funcionando (ej. el heartbeat no cancela el listener de alarmas).
- *
- * Declarar en AndroidManifest.xml:
- *  <service
- *      android:name=".service.SocketForegroundService"
- *      android:foregroundServiceType="connectedDevice"
- *      android:exported="false" />
  */
 class SocketForegroundService : Service() {
 
@@ -52,30 +33,35 @@ class SocketForegroundService : Service() {
     private lateinit var alarmPlayer: AlarmPlayer
     private lateinit var notificationHelper: NotificationHelper
 
-    // Scope propio del servicio. Se cancela en onDestroy().
+    // Scope propio del servicio. IMPORTANTE: Debe cancelarse en onDestroy.
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
-    // Job del heartbeat, guardado para poder cancelarlo si es necesario
     private var heartbeatJob: Job? = null
 
     // ── Ciclo de vida ─────────────────────────────────────────────────
 
     override fun onCreate() {
         super.onCreate()
-        Log.d(TAG, "onCreate")
+        Log.d(TAG, "onCreate: Inicializando servicio")
 
         repository         = RepositoryProvider.get(applicationContext)
         alarmPlayer        = AlarmPlayer(applicationContext)
         notificationHelper = NotificationHelper(applicationContext)
+
+        // Iniciamos los observadores una sola vez al nacer el servicio
+        observeConnectionState()
+        observeAlarmEvents()
+        observeMessageEvents()
+        observePingEvents()
+        observeCheckUpdateEvents()
+        //startHeartbeat()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        Log.d(TAG, "onStartCommand")
+        Log.d(TAG, "onStartCommand: Recibido intent")
 
         val notification = notificationHelper.buildForegroundNotification(isConnected = false)
 
-        // Android 14+ requiere especificar el tipo de servicio en la llamada a startForeground.
-        // Debe coincidir con lo declarado en el AndroidManifest.xml.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(
                 NOTIF_ID_FOREGROUND,
@@ -86,42 +72,33 @@ class SocketForegroundService : Service() {
             startForeground(NOTIF_ID_FOREGROUND, notification)
         }
 
-        // Lanza todos los listeners ANTES de conectar el socket.
-        // Esto garantiza que si el evento MESSAGE_RECEIVE llega inmediatamente
-        // después de la conexión, el servicio ya esté escuchando el Flow.
-        observeConnectionState()
-        observeAlarmEvents()
-        observeMessageEvents()
-        observePingEvents()
-        observeCheckUpdateEvents()
-        //startHeartbeat()
-
-        // Conecta el socket
         repository.connectSocket()
 
-        // START_STICKY: si Android mata el servicio, lo reinicia
-        // automáticamente con Intent null
         return START_STICKY
     }
 
     override fun onDestroy() {
-        super.onDestroy()
-        Log.d(TAG, "onDestroy")
+        Log.d(TAG, "onDestroy: Cancelando scope y desconectando")
+        
+        // CORRECCIÓN CLAVE: Al cancelar el scope, todas las corrutinas lanzadas
+        // con launchIn(serviceScope) se detienen inmediatamente. 
+        // Esto evita la duplicidad de logs y notificaciones.
+        serviceScope.cancel() 
+        
         alarmPlayer.stop()
         repository.disconnectSocket()
         heartbeatJob?.cancel()
-        // SupervisorJob se cancela automáticamente con todas sus coroutines
+        
+        super.onDestroy()
     }
 
-    // ForegroundService no soporta binding en este caso
     override fun onBind(intent: Intent?): IBinder? = null
 
-    // ── Observers ────────────────────────────────────────────────────
+    // —— Observers (sin cambios en la lógica interna) ————
 
     private fun observeConnectionState() {
         repository.connectionState
             .onEach { state ->
-                Log.d(TAG, "Estado de conexión: $state")
                 val isConnected = state.name == "CONNECTED"
                 notificationHelper.updateForegroundNotification(isConnected)
             }
@@ -153,7 +130,7 @@ class SocketForegroundService : Service() {
     private fun observeMessageEvents() {
         repository.messageEvents
             .onEach { event ->
-                Log.d(TAG, "MESSAGE_RECEIVE capturado por el servicio: ${event.sender} → ${event.message}")
+                Log.d(TAG, "MESSAGE_RECEIVE único: ${event.sender} → ${event.message}")
 
                 // Guarda en Room (MessagesScreen se actualiza sola)
                 repository.saveMessage(event)
