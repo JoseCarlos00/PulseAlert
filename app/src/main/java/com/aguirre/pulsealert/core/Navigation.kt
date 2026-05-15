@@ -2,7 +2,7 @@ package com.aguirre.pulsealert.core
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.Email
+import androidx.compose.material.icons.outlined.Mail
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.ui.graphics.vector.ImageVector
 
@@ -36,7 +36,7 @@ sealed class Screen(
     object Messages : Screen(
         route = "messages",
         title = "Mensajes",
-        icon = Icons.Outlined.Email
+        icon = Icons.Outlined.Mail
     )
 
     object Settings : Screen(
