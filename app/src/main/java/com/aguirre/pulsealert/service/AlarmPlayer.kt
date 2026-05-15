@@ -12,22 +12,7 @@ import com.aguirre.pulsealert.R
 private const val TAG = "AlarmPlayer"
 
 /**
- * Reproduce sonidos de alarma y ping con máximo volumen,
- * ignorando el modo "No Molestar" del dispositivo.
- *
- * Maneja dos tipos de sonido:
- *  - Alarma crítica: sonido persistente, duración configurable.
- *  - Ping: sonido corto fijo de 3 segundos.
- *
- * Uso desde ForegroundService:
- *   alarmPlayer.playAlarm(durationSeconds = 30)
- *   alarmPlayer.playPing()
- *   alarmPlayer.stop()  // si necesitas detenerlo antes
- *
- * IMPORTANTE: Añadir en res/raw/ los archivos de audio:
- *   - alarm_sound.mp3  (sonido de alarma)
- *   - ping_sound.mp3   (sonido corto de ping)
- * Si no existen, usará el tono de alarma del sistema como fallback.
+ * Reproduce sonidos de alarma y ping con máximo volumen.
  */
 class AlarmPlayer(private val context: Context) {
 
@@ -44,8 +29,8 @@ class AlarmPlayer(private val context: Context) {
      * @param durationSeconds Duración en segundos. 0 = indefinido hasta stop().
      */
     fun playAlarm(durationSeconds: Int = 10) {
-        if (mediaPlayer?.isPlaying == true) {
-            Log.w(TAG, "Ya hay un sonido reproduciéndose, ignorando ALARM_ACTIVATE")
+        if (isPlaying()) {
+            Log.w(TAG, "Ya hay un sonido reproduciéndose, ignorando")
             return
         }
 
@@ -54,25 +39,28 @@ class AlarmPlayer(private val context: Context) {
         setupAudioFocus()
         setMaxVolume()
 
-        mediaPlayer = createMediaPlayer(isAlarm = true).apply {
-            isLooping = durationSeconds == 0  // loop infinito si duración = 0
+        try {
+            mediaPlayer = createMediaPlayer(isAlarm = true).apply {
+                isLooping = (durationSeconds == 0)
 
-            setOnPreparedListener { mp ->
-                mp.start()
-
-                // Sí tiene duración definida, programar el stop
-                if (durationSeconds > 0) {
-                    mp.postDelayed({ stop() }, durationSeconds * 1000L)
+                setOnPreparedListener { mp ->
+                    mp.start()
+                    if (durationSeconds > 0) {
+                        mp.postDelayed({ stop() }, durationSeconds * 1000L)
+                    }
                 }
-            }
 
-            setOnErrorListener { _, what, extra ->
-                Log.e(TAG, "Error en MediaPlayer: what=$what extra=$extra")
-                stop()
-                true
-            }
+                setOnErrorListener { _, what, extra ->
+                    Log.e(TAG, "Error en MediaPlayer: what=$what extra=$extra")
+                    stop()
+                    true
+                }
 
-            prepareAsync()
+                prepareAsync()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al preparar alarma: ${e.message}")
+            stop()
         }
     }
 
@@ -82,32 +70,33 @@ class AlarmPlayer(private val context: Context) {
      * ignora No Molestar.
      */
     fun playPing() {
-        if (mediaPlayer?.isPlaying == true) {
-            Log.w(TAG, "Ya hay un sonido reproduciéndose, ignorando PING")
-            return
-        }
+        if (isPlaying()) return
 
         Log.d(TAG, "Reproduciendo ping")
 
         setupAudioFocus()
         setMaxVolume()
 
-        mediaPlayer = createMediaPlayer(isAlarm = false).apply {
-            isLooping = false
+        try {
+            mediaPlayer = createMediaPlayer(isAlarm = false).apply {
+                isLooping = false
 
-            setOnPreparedListener { mp ->
-                mp.start()
-                // El ping siempre dura 3 segundos según la documentación
-                mp.postDelayed({ stop() }, 3000L)
+                setOnPreparedListener { mp ->
+                    mp.start()
+                    mp.postDelayed({ stop() }, 3000L)
+                }
+
+                setOnErrorListener { _, what, extra ->
+                    Log.e(TAG, "Error en MediaPlayer (ping): what=$what extra=$extra")
+                    stop()
+                    true
+                }
+
+                prepareAsync()
             }
-
-            setOnErrorListener { _, what, extra ->
-                Log.e(TAG, "Error en MediaPlayer (ping): what=$what extra=$extra")
-                stop()
-                true
-            }
-
-            prepareAsync()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al preparar ping: ${e.message}")
+            stop()
         }
     }
 
@@ -120,11 +109,10 @@ class AlarmPlayer(private val context: Context) {
         try {
             mediaPlayer?.apply {
                 if (isPlaying) stop()
-                reset()
                 release()
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error al detener MediaPlayer: ${e.message}")
+            Log.e(TAG, "Error al detener: ${e.message}")
         } finally {
             mediaPlayer = null
             restoreVolume()
@@ -139,30 +127,28 @@ class AlarmPlayer(private val context: Context) {
      */
     fun isPlaying(): Boolean = mediaPlayer?.isPlaying == true
 
-    // ── Helpers privados ──────────────────────────────────────────────
+    // ── Helpers privados corregidos ──────────────────────────────────
 
     /**
-     * Crea el MediaPlayer con el audio correcto.
-     * Intenta cargar el archivo local en res/raw/.
-     * Si no existe, usa el tono de alarma del sistema como fallback.
+     * Crea un MediaPlayer vacío y le asigna la fuente de datos SIN prepararlo.
+     * Esto permite que playAlarm() llame a prepareAsync() sin errores.
      */
     private fun createMediaPlayer(isAlarm: Boolean): MediaPlayer {
-        return try {
-            val rawRes = if (isAlarm) R.raw.alarm_sound else R.raw.ping_sound
-            MediaPlayer.create(context, rawRes) ?: fallbackMediaPlayer()
-        } catch (e: Exception) {
-            Log.w(TAG, "No se encontró audio en res/raw, usando tono del sistema")
-            fallbackMediaPlayer()
-        }
-    }
+        val mp = MediaPlayer()
+        mp.setAudioAttributes(buildAudioAttributes())
 
-    private fun fallbackMediaPlayer(): MediaPlayer {
-        val alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-            ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
-        return MediaPlayer().apply {
-            setAudioAttributes(buildAudioAttributes())
-            setDataSource(context, alarmUri)
+        try {
+            val rawRes = if (isAlarm) R.raw.alarm_sound else R.raw.ping_sound
+            val afd = context.resources.openRawResourceFd(rawRes)
+            mp.setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
+            afd.close()
+        } catch (e: Exception) {
+            Log.w(TAG, "No se encontró recurso raw, usando fallback del sistema")
+            val alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+            mp.setDataSource(context, alarmUri)
         }
+        return mp
     }
 
     /**
@@ -172,10 +158,8 @@ class AlarmPlayer(private val context: Context) {
      */
     private fun setupAudioFocus() {
         audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-
         audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
             .setAudioAttributes(buildAudioAttributes())
-            .setAcceptsDelayedFocusGain(false)
             .build()
         audioManager?.requestAudioFocus(audioFocusRequest!!)
     }
@@ -190,21 +174,12 @@ class AlarmPlayer(private val context: Context) {
     private fun setMaxVolume() {
         audioManager?.let { am ->
             originalVolume = am.getStreamVolume(AudioManager.STREAM_ALARM)
-            val maxVolume = am.getStreamMaxVolume(AudioManager.STREAM_ALARM)
-            am.setStreamVolume(
-                AudioManager.STREAM_ALARM,
-                maxVolume,
-                0 // sin UI de volumen
-            )
+            am.setStreamVolume(AudioManager.STREAM_ALARM, am.getStreamMaxVolume(AudioManager.STREAM_ALARM), 0)
         }
     }
 
     private fun restoreVolume() {
-        audioManager?.setStreamVolume(
-            AudioManager.STREAM_ALARM,
-            originalVolume,
-            0
-        )
+        audioManager?.setStreamVolume(AudioManager.STREAM_ALARM, originalVolume, 0)
     }
 
     private fun buildAudioAttributes(): AudioAttributes {
