@@ -77,22 +77,22 @@ class SocketDataSource(
     private var socket: Socket? = null
 
     // —— Flows de eventos entrantes ————————
-    // SharedFlow con replay=0: solo emite a suscriptores activos.
-    // El ForegroundService se suscribe antes de conectar, así no pierde nada.
+    // Usamos extraBufferCapacity=64 para que tryEmit() sea fiable incluso
+    // si el colector está momentáneamente ocupado o procesando.
 
     private val _connectionState = MutableSharedFlow<ConnectionState>(replay = 1)
     val connectionState: Flow<ConnectionState> = _connectionState.asSharedFlow()
 
-    private val _alarmEvents = MutableSharedFlow<AlarmEvent>(replay = 0)
+    private val _alarmEvents = MutableSharedFlow<AlarmEvent>(replay = 0, extraBufferCapacity = 64)
     val alarmEvents: Flow<AlarmEvent> = _alarmEvents.asSharedFlow()
 
-    private val _messageEvents = MutableSharedFlow<MessageEvent>(replay = 0)
+    private val _messageEvents = MutableSharedFlow<MessageEvent>(replay = 0, extraBufferCapacity = 64)
     val messageEvents: Flow<MessageEvent> = _messageEvents.asSharedFlow()
 
-    private val _pingEvents = MutableSharedFlow<Unit>(replay = 0)
+    private val _pingEvents = MutableSharedFlow<Unit>(replay = 0, extraBufferCapacity = 64)
     val pingEvents: Flow<Unit> = _pingEvents.asSharedFlow()
 
-    private val _checkUpdateEvents = MutableSharedFlow<Unit>(replay = 0)
+    private val _checkUpdateEvents = MutableSharedFlow<Unit>(replay = 0, extraBufferCapacity = 64)
     val checkUpdateEvents: Flow<Unit> = _checkUpdateEvents.asSharedFlow()
 
     // ── Conexión ──────────────────────────────────────────────────────
@@ -240,6 +240,7 @@ class SocketDataSource(
 
         // MESSAGE_RECEIVE
         socket.on(SocketEvents.Incoming.MESSAGE_RECEIVE) { args ->
+            val ack = args?.lastOrNull() as? Ack
             val payload = args?.firstOrNull() as? JSONObject ?: return@on
 
             val message = payload.optString("message", "")
@@ -253,8 +254,13 @@ class SocketDataSource(
                 sender = payload.optString("sender", "Nuevo Mensaje")
             )
 
+            val response = JSONObject()
+            response.put("status", "OK")
+
             Log.d(TAG, "MESSAGE_RECEIVE: ${event.sender} → ${event.message}")
+
             _messageEvents.tryEmit(event)
+            ack?.call(response)
         }
 
         // CHECK_FOR_UPDATE
