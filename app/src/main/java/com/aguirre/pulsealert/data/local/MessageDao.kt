@@ -24,7 +24,7 @@ interface MessageDao {
      * Llamado desde SocketForegroundService al recibir MESSAGE_RECEIVE.
      *
      * OnConflictStrategy.IGNORE por seguridad, aunque en la práctica
-     * los ID son auto generados y no debería haber conflictos.
+     * los ID son autogenerados y no debería haber conflictos.
      */
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(message: MessageEntity)

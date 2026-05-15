@@ -75,7 +75,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    // ── Handlers de cambio en el formulario ──────────────────────────
+    // ——— Handlers de cambio en el formulario ———
     // Cada campo del formulario llama a su función correspondiente.
     // update { } crea una copia del estado cambiando solo ese campo.
 

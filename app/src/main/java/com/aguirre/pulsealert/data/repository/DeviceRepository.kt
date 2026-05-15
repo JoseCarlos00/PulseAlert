@@ -1,8 +1,6 @@
 package com.aguirre.pulsealert.data.repository
 
-import android.content.Context
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
+
 import com.aguirre.pulsealert.data.local.AppPreferences
 import com.aguirre.pulsealert.data.local.MessageDao
 import com.aguirre.pulsealert.data.local.MessageEntity
@@ -11,7 +9,6 @@ import com.aguirre.pulsealert.data.remote.ConnectionState
 import com.aguirre.pulsealert.data.remote.MessageEvent
 import com.aguirre.pulsealert.data.remote.SocketDataSource
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.StateFlow
 
 /**
  * Fuente única de verdad de la app.
