@@ -86,16 +86,18 @@ class SocketForegroundService : Service() {
             startForeground(NOTIF_ID_FOREGROUND, notification)
         }
 
-        // Conecta el socket
-        repository.connectSocket()
-
-        // Lanza todos los listeners como coroutines independientes
+        // Lanza todos los listeners ANTES de conectar el socket.
+        // Esto garantiza que si el evento MESSAGE_RECEIVE llega inmediatamente
+        // después de la conexión, el servicio ya esté escuchando el Flow.
         observeConnectionState()
         observeAlarmEvents()
         observeMessageEvents()
         observePingEvents()
         observeCheckUpdateEvents()
-        startHeartbeat()
+        //startHeartbeat()
+
+        // Conecta el socket
+        repository.connectSocket()
 
         // START_STICKY: si Android mata el servicio, lo reinicia
         // automáticamente con Intent null
@@ -134,6 +136,7 @@ class SocketForegroundService : Service() {
     private fun observeAlarmEvents() {
         repository.alarmEvents
             .onEach { event ->
+                Log.d(TAG, "ALARM_ACTIVATE recibido: ${event.deviceAlias}")
                 if (alarmPlayer.isPlaying()) return@onEach
                 alarmPlayer.playAlarm(durationSeconds = event.durationSeconds)
                 notificationHelper.showAlarmNotification(event.deviceAlias)
@@ -150,7 +153,7 @@ class SocketForegroundService : Service() {
     private fun observeMessageEvents() {
         repository.messageEvents
             .onEach { event ->
-                Log.d(TAG, "MESSAGE_RECEIVE: ${event.sender} → ${event.message}")
+                Log.d(TAG, "MESSAGE_RECEIVE capturado por el servicio: ${event.sender} → ${event.message}")
 
                 // Guarda en Room (MessagesScreen se actualiza sola)
                 repository.saveMessage(event)
@@ -167,6 +170,7 @@ class SocketForegroundService : Service() {
     private fun observePingEvents() {
         repository.pingEvents
             .onEach {
+                Log.d(TAG, "PING recibido por el servicio")
                 if (alarmPlayer.isPlaying()) return@onEach
                 alarmPlayer.playPing()
 
