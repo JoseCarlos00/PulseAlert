@@ -89,6 +89,7 @@ class MainActivity : ComponentActivity() {
      */
     private fun handleIntent(intent: Intent?) {
         val navigateTo = intent?.getStringExtra(EXTRA_NAVIGATE_TO)
+        // TODO: Verificar que sucede si estoy en la pantalla Messages
         if (navigateTo == NAV_MESSAGES) {
             android.util.Log.d("MainActivity", "Navegando a Mensajes vía Deep Link")
             messagesViewModel.triggerNavigation(Screen.Messages.route)
