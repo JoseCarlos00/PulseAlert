@@ -1,6 +1,9 @@
 package com.aguirre.pulsealert.core
 
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -9,6 +12,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -17,6 +23,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.aguirre.pulsealert.ui.home.HomeScreen
 import com.aguirre.pulsealert.ui.messages.MessagesScreen
+import com.aguirre.pulsealert.ui.messages.MessagesViewModel
 import com.aguirre.pulsealert.ui.settings.SettingsScreen
 
 /**
@@ -32,25 +39,35 @@ import com.aguirre.pulsealert.ui.settings.SettingsScreen
  */
 @Composable
 fun AppNavigation() {
-
     val navController = rememberNavController()
+
+    // MessagesViewModel se crea aquí para que el unreadCount
+    // esté disponible en la BottomBar sin importar qué pantalla
+    // esté activa. El mismo ViewModel es reutilizado por MessagesScreen
+    // porque Compose los comparte dentro del mismo NavBackStackEntry.
+    val messagesViewModel: MessagesViewModel = viewModel()
+    val unreadCount by messagesViewModel.unreadCount.collectAsStateWithLifecycle()
 
     Scaffold(
         bottomBar = {
-            AppBottomBar(navController = navController)
+            AppBottomBar(
+                navController  = navController,
+                unreadCount    = unreadCount
+            )
         }
     ) { innerPadding ->
-
         NavHost(
-            navController = navController,
+            navController    = navController,
             startDestination = Screen.Home.route,
-            modifier = Modifier.padding(innerPadding)
+            modifier         = Modifier.padding(innerPadding)
         ) {
             composable(Screen.Home.route) {
                 HomeScreen()
             }
             composable(Screen.Messages.route) {
-                MessagesScreen()
+                // Pasamos el mismo viewModel para que comparta estado
+                // con el que ya está vivo en AppNavigation.
+                MessagesScreen(viewModel = messagesViewModel)
             }
             composable(Screen.Settings.route) {
                 SettingsScreen()
@@ -69,25 +86,49 @@ fun AppNavigation() {
  */
 @Composable
 private fun AppBottomBar(
-    navController: androidx.navigation.NavController
+    navController: androidx.navigation.NavController,
+    unreadCount: Int
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
 
     NavigationBar {
         bottomNavScreens.forEach { screen ->
+            val isSelected = currentDestination?.hierarchy?.any {
+                it.route == screen.route
+            } == true
+
             NavigationBarItem(
                 icon = {
-                    Icon(
-                        imageVector = screen.icon,
-                        contentDescription = screen.title
-                    )
+                    // Solo la tab de Mensajes muestra badge
+                    if (screen is Screen.Messages && unreadCount > 0) {
+                        BadgedBox(
+                            badge = {
+                                Badge {
+                                    // Muestra "9+" si hay más de 9 no leídos
+                                    Text(
+                                        text = if (unreadCount > 9) "9+" else unreadCount.toString()
+                                    )
+                                }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = screen.icon,
+                                contentDescription = screen.title,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    } else {
+                        Icon(
+                            imageVector = screen.icon,
+                            contentDescription = screen.title,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                 },
-                label = { Text(screen.title) },
-                selected = currentDestination?.hierarchy?.any {
-                    it.route == screen.route
-                } == true,
-                onClick = {
+                label   = { Text(screen.title) },
+                selected = isSelected,
+                onClick  = {
                     navController.navigate(screen.route) {
                         // Evita acumular pantallas en el back stack al
                         // tocar tabs repetidamente.
@@ -95,7 +136,7 @@ private fun AppBottomBar(
                             saveState = true
                         }
                         launchSingleTop = true
-                        restoreState = true
+                        restoreState    = true
                     }
                 }
             )
