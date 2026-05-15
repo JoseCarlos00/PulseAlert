@@ -6,7 +6,6 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.aguirre.pulsealert.MainActivity
 import com.aguirre.pulsealert.R
@@ -62,7 +61,8 @@ class NotificationHelper(private val context: Context) {
         return NotificationCompat.Builder(context, CHANNEL_FOREGROUND)
             .setContentTitle("AlertNode activo")
             .setContentText(statusText)
-            .setSmallIcon(R.drawable.ic_notification)
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            //.setSmallIcon(R.drawable.ic_notification)
             .setOngoing(true)           // no se puede descartar deslizando
             .setSilent(true)            // sin sonido ni vibración
             .setContentIntent(buildMainIntent())
@@ -92,7 +92,8 @@ class NotificationHelper(private val context: Context) {
         val notification = NotificationCompat.Builder(context, CHANNEL_ALARM)
             .setContentTitle("⚠️ ALARMA ACTIVADA")
             .setContentText("Origen: $deviceAlias")
-            .setSmallIcon(R.drawable.ic_notification)
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            // .setSmallIcon(R.drawable.ic_notification)
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setAutoCancel(true)
@@ -115,7 +116,8 @@ class NotificationHelper(private val context: Context) {
         val notification = NotificationCompat.Builder(context, CHANNEL_MESSAGE)
             .setContentTitle(sender)
             .setContentText(message)
-            .setSmallIcon(R.drawable.ic_notification)
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            // .setSmallIcon(R.drawable.ic_notification)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
             .setAutoCancel(true)
