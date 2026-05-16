@@ -86,20 +86,26 @@ class SocketForegroundService : Service() {
             startForeground(NOTIF_ID_FOREGROUND, notification)
         }
 
-        // Verificar si seguimos en mantenimiento antes de conectar.
-        // Esto cubre el caso donde Android mató y relanzó el servicio
-        // mientras el mantenimiento aún estaba activo.
-        serviceScope.launch {
-            val untilMs = repository.getMaintenanceUntilMs()
-            if (untilMs > System.currentTimeMillis()) {
-                Log.w(TAG, "Servicio relanzado durante mantenimiento. No conectando hasta: $untilMs")
-                notificationHelper.updateMaintenanceNotification(untilMs)
-                StatusCheckJobService.schedule(applicationContext, untilMs)
-            } else {
-                // Mantenimiento expirado o no activo — limpiar y conectar normal
-                repository.setMaintenanceMode(false)
-                repository.connectSocket()
+        // Solo conectar si no está ya conectado
+        if (!repository.isSocketConnected()) {
+            // Verificar si seguimos en mantenimiento antes de conectar.
+            // Esto cubre el caso donde Android mató y relanzó el servicio
+            // mientras el mantenimiento aún estaba activo.
+            serviceScope.launch {
+                val untilMs = repository.getMaintenanceUntilMs()
+                if (untilMs > System.currentTimeMillis()) {
+                    Log.w(TAG, "Servicio relanzado durante mantenimiento. No conectando hasta: $untilMs")
+                    notificationHelper.updateMaintenanceNotification(untilMs)
+                    StatusCheckJobService.schedule(applicationContext, untilMs)
+                } else {
+                    // Mantenimiento expirado o no activo — limpiar y conectar normal
+                    repository.setMaintenanceMode(false)
+                    repository.connectSocket()
+                }
             }
+        } else {
+            // Socket ya conectado — solo actualizar la notificación al estado real
+            notificationHelper.updateForegroundNotification(isConnected = true)
         }
 
         return START_STICKY
