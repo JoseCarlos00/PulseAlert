@@ -88,12 +88,17 @@ class NotificationHelper(private val context: Context) {
      * @param untilTimestampMs Timestamp en ms de cuando termina el mantenimiento.
      */
     fun updateMaintenanceNotification(untilTimestampMs: Long) {
-        val timeText = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
-            .format(java.util.Date(untilTimestampMs))
+        val contentText = if (untilTimestampMs > System.currentTimeMillis()) {
+            val timeText = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
+                .format(java.util.Date(untilTimestampMs))
+            "Reconexión automática a las $timeText"
+        } else {
+            "Verificando estado del servidor..."
+        }
 
         val notification = NotificationCompat.Builder(context, CHANNEL_MAINTENANCE)
             .setContentTitle("🔧 Servidor en mantenimiento")
-            .setContentText("Reconexión automática a las $timeText")
+            .setContentText(contentText)
             .setSmallIcon(R.drawable.ic_notification)
             .setOngoing(true)
             .setSilent(true)

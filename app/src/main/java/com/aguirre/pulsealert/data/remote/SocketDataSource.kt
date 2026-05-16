@@ -100,6 +100,9 @@ class SocketDataSource(
     private val _maintenanceEvents = MutableSharedFlow<MaintenanceEvent>(replay = 0, extraBufferCapacity = 64)
     val maintenanceEvents: Flow<MaintenanceEvent> = _maintenanceEvents.asSharedFlow()
 
+    private var consecutiveFailCount = 0
+    private var onMaintenanceDetected: ((Long) -> Unit)? = null
+
     // ── Conexión ──────────────────────────────────────────────────────
 
     /**
@@ -157,6 +160,7 @@ class SocketDataSource(
     private fun registerConnectionListeners(socket: Socket) {
         socket.on(Socket.EVENT_CONNECT) {
             Log.d(TAG, "Conectado al servidor")
+            consecutiveFailCount = 0  // resetear al conectar exitosamente
             _connectionState.tryEmit(ConnectionState.CONNECTED)
             registerDevice(socket)
         }
@@ -171,6 +175,15 @@ class SocketDataSource(
             val error = args?.firstOrNull()?.toString() ?: "error desconocido"
             Log.e(TAG, "Error de conexión: $error")
             _connectionState.tryEmit(ConnectionState.ERROR)
+
+            consecutiveFailCount++
+            Log.w(TAG, "Fallos consecutivos: $consecutiveFailCount")
+
+            if (consecutiveFailCount >= 10) {
+                Log.w(TAG, "10 fallos consecutivos. Notificando para consultar /status")
+                consecutiveFailCount = 0  // resetear para no disparar múltiples veces
+                onMaintenanceDetected?.invoke(System.currentTimeMillis())
+            }
         }
     }
 
@@ -357,5 +370,23 @@ class SocketDataSource(
     fun disableReconnection() {
         socket?.io()?.reconnection(false)
         Log.d(TAG, "Reconexión automática deshabilitada")
+    }
+
+    /**
+     * Rehabilita la reconexión automática del socket.
+     * Llamado desde StatusCheckJobService cuando el servidor vuelve a ACTIVE.
+     */
+    fun enableReconnection() {
+        socket?.io()?.reconnection(true)
+        Log.d(TAG, "Reconexión automática rehabilitada")
+    }
+
+    /**
+     * Callback que el ForegroundService asigna para ser notificado cuando
+     * el contador de fallos consecutivos supera el límite.
+     * Recibe el timestamp actual para que el JobService pueda programarse.
+     */
+    fun setOnMaintenanceDetectedListener(listener: (Long) -> Unit) {
+        onMaintenanceDetected = listener
     }
 }

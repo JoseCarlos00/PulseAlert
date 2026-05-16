@@ -157,4 +157,8 @@ class DeviceRepository(
     fun isSocketConnected(): Boolean = socketDataSource.isConnected()
 
     fun disableSocketReconnection() = socketDataSource.disableReconnection()
+    fun enableSocketReconnection() = socketDataSource.enableReconnection()
+
+    fun setOnMaintenanceDetectedListener(listener: (Long) -> Unit) =
+        socketDataSource.setOnMaintenanceDetectedListener(listener)
 }

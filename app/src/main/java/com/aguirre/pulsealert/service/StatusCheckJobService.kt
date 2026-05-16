@@ -86,10 +86,10 @@ class StatusCheckJobService : JobService() {
 
         jobScope.launch {
             val repository   = RepositoryProvider.get(applicationContext)
-            val serverUrl    = repository.serverUrl.first()
+            val statusUrl = repository.statusUrl.first()
             val notifHelper  = NotificationHelper(applicationContext)
 
-            performStatusCheck(params, serverUrl, notifHelper)
+            performStatusCheck(params, statusUrl, notifHelper)
         }
 
         return true // trabajo asíncrono en curso
@@ -105,10 +105,10 @@ class StatusCheckJobService : JobService() {
 
     private suspend fun performStatusCheck(
         params: JobParameters?,
-        serverUrl: String,
+        statusUrl: String,
         notifHelper: NotificationHelper
     ) {
-        val statusUrl = "$serverUrl/status"
+
         var connection: HttpURLConnection? = null
 
         try {
@@ -165,6 +165,7 @@ class StatusCheckJobService : JobService() {
         Log.i(TAG, "Servidor ACTIVE. Reconectando...")
 
         val repository = RepositoryProvider.get(applicationContext)
+        repository.enableSocketReconnection()  // rehabilitar antes de conectar
         repository.connectSocket()
 
         // Limpiar estado de mantenimiento en DataStore
@@ -206,11 +207,16 @@ class StatusCheckJobService : JobService() {
         Log.w(TAG, "Fallo #$failCount")
 
         if (failCount >= MAX_FAIL_ATTEMPTS) {
-            Log.e(TAG, "Máximo de reintentos alcanzado. Dejando de verificar.")
+            Log.e(TAG, "Máximo de reintentos alcanzado. Apagando el servicio.")
             jobScope.launch {
                 RepositoryProvider.get(applicationContext).setMaintenanceMode(false)
             }
             notifHelper.clearMaintenanceNotification()
+
+            // Detener el ForegroundService — reconexión manual desde la app
+            val stopIntent = Intent(applicationContext, SocketForegroundService::class.java)
+            applicationContext.stopService(stopIntent)
+
             jobFinished(params, false)
             return
         }

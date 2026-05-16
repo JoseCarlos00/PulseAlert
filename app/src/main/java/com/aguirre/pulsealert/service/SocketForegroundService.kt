@@ -56,6 +56,19 @@ class SocketForegroundService : Service() {
         observeCheckUpdateEvents()
         //startHeartbeat()
         observeMaintenanceEvents()
+
+        // Detectar mantenimiento cuando el socket falla 10 veces consecutivas
+        repository.setOnMaintenanceDetectedListener { _ ->
+            serviceScope.launch {
+                // No tenemos timestamp del servidor — consultamos /status
+                // El JobService arranca inmediatamente (delayMs = 0)
+                Log.w(TAG, "10 fallos detectados. Lanzando StatusCheckJobService.")
+                repository.setMaintenanceMode(true, 0L)
+                repository.disableSocketReconnection()
+                notificationHelper.updateMaintenanceNotification(0L)
+                StatusCheckJobService.schedule(applicationContext, System.currentTimeMillis())
+            }
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
