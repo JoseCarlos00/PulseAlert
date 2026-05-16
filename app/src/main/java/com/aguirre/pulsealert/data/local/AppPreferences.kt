@@ -42,6 +42,7 @@ class AppPreferences(private val context: Context) {
         // Claves tipadas para cada preferencia.
         // stringPreferencesKey garantiza que no mezcles tipos por error.
         private val KEY_SERVER_URL   = stringPreferencesKey("server_url")
+        private val KEY_STATUS_URL = stringPreferencesKey("status_url")
         private val KEY_API_KEY      = stringPreferencesKey("api_key")
         private val KEY_DEVICE_ALIAS = stringPreferencesKey("device_alias")
         private val KEY_MAINTENANCE_MODE      = booleanPreferencesKey("maintenance_mode")
@@ -82,6 +83,10 @@ class AppPreferences(private val context: Context) {
         prefs[KEY_MAINTENANCE_UNTIL_MS] ?: 0L
     }
 
+    val statusUrl: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[KEY_STATUS_URL] ?: AppConfig.DEFAULT_STATUS_URL
+    }
+
     // ── Funciones de escritura ────────────────────────────────────────
 
     /**
@@ -116,6 +121,12 @@ class AppPreferences(private val context: Context) {
     suspend fun getMaintenanceUntilMs(): Long =
         context.dataStore.data.map { it[KEY_MAINTENANCE_UNTIL_MS] ?: 0L }.first()
 
+    suspend fun saveStatusUrl(url: String) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_STATUS_URL] = url
+        }
+    }
+
     /**
      * Restablece todos los valores a los defaults de AppConfig.
      * Útil para el botón "Restablecer" en SettingsScreen.
@@ -127,6 +138,7 @@ class AppPreferences(private val context: Context) {
             prefs[KEY_DEVICE_ALIAS] = AppConfig.DEFAULT_DEVICE_ALIAS
             prefs[KEY_MAINTENANCE_MODE]     = false
             prefs[KEY_MAINTENANCE_UNTIL_MS] = 0L
+            prefs[KEY_STATUS_URL] = AppConfig.DEFAULT_STATUS_URL
         }
     }
 }
