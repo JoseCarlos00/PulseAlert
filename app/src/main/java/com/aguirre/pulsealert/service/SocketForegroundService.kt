@@ -55,6 +55,7 @@ class SocketForegroundService : Service() {
         observePingEvents()
         observeCheckUpdateEvents()
         //startHeartbeat()
+        observeMaintenanceEvents()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -72,7 +73,21 @@ class SocketForegroundService : Service() {
             startForeground(NOTIF_ID_FOREGROUND, notification)
         }
 
-        repository.connectSocket()
+        // Verificar si seguimos en mantenimiento antes de conectar.
+        // Esto cubre el caso donde Android mató y relanzó el servicio
+        // mientras el mantenimiento aún estaba activo.
+        serviceScope.launch {
+            val untilMs = repository.getMaintenanceUntilMs()
+            if (untilMs > System.currentTimeMillis()) {
+                Log.w(TAG, "Servicio relanzado durante mantenimiento. No conectando hasta: $untilMs")
+                notificationHelper.updateMaintenanceNotification(untilMs)
+                StatusCheckJobService.schedule(applicationContext, untilMs)
+            } else {
+                // Mantenimiento expirado o no activo — limpiar y conectar normal
+                repository.setMaintenanceMode(false)
+                repository.connectSocket()
+            }
+        }
 
         return START_STICKY
     }
@@ -173,7 +188,33 @@ class SocketForegroundService : Service() {
             .launchIn(serviceScope)
     }
 
-    // ── Heartbeat ─────────────────────────────────────────────────────
+    /**
+     * Escucha SET_MAINTENANCE_MODE.
+     * Orquesta la desconexión limpia del socket, persiste el estado,
+     * muestra la notificación y programa el JobService para despertar.
+     */
+    private fun observeMaintenanceEvents() {
+        repository.maintenanceEvents
+            .onEach { event ->
+                Log.w(TAG, "SET_MAINTENANCE_MODE recibido. Hasta: ${event.untilTimestampMs}")
+
+                // 1. Persistir estado ANTES de desconectar
+                repository.setMaintenanceMode(true, event.untilTimestampMs)
+
+                // 2. Deshabilitar reconexión automática y desconectar
+                repository.disableSocketReconnection()
+                repository.disconnectSocket()
+
+                // 3. Notificación visible para el usuario
+                notificationHelper.updateMaintenanceNotification(event.untilTimestampMs)
+
+                // 4. Programar el Job para cuando termine el mantenimiento
+                StatusCheckJobService.schedule(applicationContext, event.untilTimestampMs)
+
+                Log.w(TAG, "Socket desconectado. Job programado.")
+            }
+            .launchIn(serviceScope)
+    }
 
     /**
      * Envía el estado del dispositivo al servidor cada 45 segundos.

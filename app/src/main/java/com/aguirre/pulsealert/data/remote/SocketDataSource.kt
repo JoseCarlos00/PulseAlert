@@ -31,6 +31,15 @@ data class MessageEvent(
 )
 
 /**
+ * Datos del evento SET_MAINTENANCE_MODE recibido desde el servidor.
+ */
+data class MaintenanceEvent(
+    val untilTimestampMs: Long,
+    val reason: String = "",
+    val estimatedDuration: Int = 0
+)
+
+/**
  * Estado de la conexión Socket.IO.
  * El ForegroundService y el HomeViewModel observan este estado.
  */
@@ -87,6 +96,9 @@ class SocketDataSource(
 
     private val _checkUpdateEvents = MutableSharedFlow<Unit>(replay = 0, extraBufferCapacity = 64)
     val checkUpdateEvents: Flow<Unit> = _checkUpdateEvents.asSharedFlow()
+
+    private val _maintenanceEvents = MutableSharedFlow<MaintenanceEvent>(replay = 0, extraBufferCapacity = 64)
+    val maintenanceEvents: Flow<MaintenanceEvent> = _maintenanceEvents.asSharedFlow()
 
     // ── Conexión ──────────────────────────────────────────────────────
 
@@ -267,8 +279,47 @@ class SocketDataSource(
             }
         }
 
+        // PING
         socket.on(SocketEvents.Incoming.PING) { _pingEvents.tryEmit(Unit) }
+
+        // CHECK_FOR_UPDATE
         socket.on(SocketEvents.Incoming.CHECK_FOR_UPDATE) { _checkUpdateEvents.tryEmit(Unit) }
+
+        // SET_MAINTENANCE_MODE
+        socket.on(SocketEvents.Incoming.SET_MAINTENANCE_MODE) { args ->
+            try {
+                val payload = args?.firstOrNull() as? JSONObject
+                val ack     = args?.lastOrNull() as? Ack
+
+                val untilMs = payload?.optLong("untilTimestampMs", 0L) ?: 0L
+
+                if (untilMs > System.currentTimeMillis()) {
+                    Log.w(TAG, "SET_MAINTENANCE_MODE recibido. Durmiendo hasta: $untilMs")
+
+                    val event = MaintenanceEvent(
+                        untilTimestampMs    = untilMs,
+                        reason              = payload?.optString("reason", "") ?: "",
+                        estimatedDuration   = payload?.optInt("estimatedDuration", 0) ?: 0
+                    )
+                    _maintenanceEvents.tryEmit(event)
+
+                    // ACK al servidor antes de desconectar
+                    ack?.call(JSONObject().apply {
+                        put("status", "OK")
+                        put("message", "Entrando en modo mantenimiento")
+                    })
+
+                } else {
+                    Log.w(TAG, "SET_MAINTENANCE_MODE con timestamp inválido: $untilMs")
+                    ack?.call(JSONObject().apply {
+                        put("status", "ERROR")
+                        put("reason", "Timestamp no válido o ya expirado.")
+                    })
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error procesando SET_MAINTENANCE_MODE: ${e.message}")
+            }
+        }
     }
 
     // ── Emisión de eventos ────────────────────────────────────────────
@@ -297,4 +348,14 @@ class SocketDataSource(
     }
 
     fun isConnected(): Boolean = socket?.connected() == true
+
+    /**
+     * Deshabilita la reconexión automática del socket.
+     * Llamado ANTES de disconnect() durante el modo mantenimiento,
+     * para evitar que Socket.IO intente reconectarse solo.
+     */
+    fun disableReconnection() {
+        socket?.io()?.reconnection(false)
+        Log.d(TAG, "Reconexión automática deshabilitada")
+    }
 }

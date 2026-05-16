@@ -30,11 +30,13 @@ class NotificationHelper(private val context: Context) {
         const val CHANNEL_FOREGROUND = "pulsealert_foreground"
         const val CHANNEL_ALARM      = "pulsealert_alarm"
         const val CHANNEL_MESSAGE    = "pulsealert_message"
+        const val CHANNEL_MAINTENANCE = "pulsealert_maintenance"
 
         // IDs de notificaciones
         const val NOTIF_ID_FOREGROUND = 1
         const val NOTIF_ID_ALARM      = 2
         const val NOTIF_ID_MESSAGE    = 3
+        const val NOTIF_ID_MAINTENANCE = 4
 
         // Extra para el Intent — indica qué pantalla abrir
         const val EXTRA_NAVIGATE_TO = "navigate_to"
@@ -77,6 +79,37 @@ class NotificationHelper(private val context: Context) {
             NOTIF_ID_FOREGROUND,
             buildForegroundNotification(isConnected)
         )
+    }
+
+    /**
+     * Reemplaza la notificación persistente con una de mantenimiento.
+     * Muestra la hora estimada de regreso para que el usuario sepa qué esperar.
+     *
+     * @param untilTimestampMs Timestamp en ms de cuando termina el mantenimiento.
+     */
+    fun updateMaintenanceNotification(untilTimestampMs: Long) {
+        val timeText = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
+            .format(java.util.Date(untilTimestampMs))
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_MAINTENANCE)
+            .setContentTitle("🔧 Servidor en mantenimiento")
+            .setContentText("Reconexión automática a las $timeText")
+            .setSmallIcon(R.drawable.ic_notification)
+            .setOngoing(true)
+            .setSilent(true)
+            .setContentIntent(buildMainIntent())
+            .build()
+
+        // Reemplaza la notificación del foreground con el mismo ID
+        notificationManager.notify(NOTIF_ID_FOREGROUND, notification)
+    }
+
+    /**
+     * Restaura la notificación persistente normal después del mantenimiento.
+     * Llamado desde StatusCheckJobService cuando el servidor vuelve a ACTIVE.
+     */
+    fun clearMaintenanceNotification() {
+        updateForegroundNotification(isConnected = false)
     }
 
     // ── Notificación de alarma ────────────────────────────────────────
@@ -145,9 +178,6 @@ class NotificationHelper(private val context: Context) {
     /**
      * Intent que abre MainActivity con el extra EXTRA_NAVIGATE_TO = "messages".
      * MainActivity lo leerá en onNewIntent() y navegará a MessagesScreen.
-     *
-     * TODO: implementar onNewIntent() en MainActivity cuando lleguemos
-     * a la Fase 4 para completar el deep link.
      */
     private fun buildMessagesIntent(): PendingIntent {
         val intent = Intent(context, MainActivity::class.java).apply {
@@ -194,6 +224,14 @@ class NotificationHelper(private val context: Context) {
             ).apply {
                 description = "Mensajes enviados desde el panel web"
                 enableVibration(true)
+            },
+
+            NotificationChannel(
+                CHANNEL_MAINTENANCE,
+                "Modo mantenimiento",
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "Notificación activa durante el mantenimiento del servidor"
             }
         )
 

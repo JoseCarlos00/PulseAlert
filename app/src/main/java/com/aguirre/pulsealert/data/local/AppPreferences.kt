@@ -3,11 +3,14 @@ package com.aguirre.pulsealert.data.local
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.aguirre.pulsealert.core.AppConfig
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 /**
@@ -41,6 +44,8 @@ class AppPreferences(private val context: Context) {
         private val KEY_SERVER_URL   = stringPreferencesKey("server_url")
         private val KEY_API_KEY      = stringPreferencesKey("api_key")
         private val KEY_DEVICE_ALIAS = stringPreferencesKey("device_alias")
+        private val KEY_MAINTENANCE_MODE      = booleanPreferencesKey("maintenance_mode")
+        private val KEY_MAINTENANCE_UNTIL_MS  = longPreferencesKey("maintenance_until_ms")
     }
 
     // ── Flows de lectura ──────────────────────────────────────────────
@@ -69,6 +74,14 @@ class AppPreferences(private val context: Context) {
         prefs[KEY_DEVICE_ALIAS] ?: AppConfig.DEFAULT_DEVICE_ALIAS
     }
 
+    val isMaintenanceMode: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[KEY_MAINTENANCE_MODE] ?: false
+    }
+
+    val maintenanceUntilMs: Flow<Long> = context.dataStore.data.map { prefs ->
+        prefs[KEY_MAINTENANCE_UNTIL_MS] ?: 0L
+    }
+
     // ── Funciones de escritura ────────────────────────────────────────
 
     /**
@@ -93,6 +106,16 @@ class AppPreferences(private val context: Context) {
         }
     }
 
+    suspend fun setMaintenanceMode(active: Boolean, untilMs: Long = 0L) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_MAINTENANCE_MODE]     = active
+            prefs[KEY_MAINTENANCE_UNTIL_MS] = untilMs
+        }
+    }
+
+    suspend fun getMaintenanceUntilMs(): Long =
+        context.dataStore.data.map { it[KEY_MAINTENANCE_UNTIL_MS] ?: 0L }.first()
+
     /**
      * Restablece todos los valores a los defaults de AppConfig.
      * Útil para el botón "Restablecer" en SettingsScreen.
@@ -102,6 +125,8 @@ class AppPreferences(private val context: Context) {
             prefs[KEY_SERVER_URL]   = AppConfig.DEFAULT_SERVER_URL
             prefs[KEY_API_KEY]      = AppConfig.DEFAULT_API_KEY
             prefs[KEY_DEVICE_ALIAS] = AppConfig.DEFAULT_DEVICE_ALIAS
+            prefs[KEY_MAINTENANCE_MODE]     = false
+            prefs[KEY_MAINTENANCE_UNTIL_MS] = 0L
         }
     }
 }

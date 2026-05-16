@@ -6,6 +6,7 @@ import com.aguirre.pulsealert.data.local.MessageDao
 import com.aguirre.pulsealert.data.local.MessageEntity
 import com.aguirre.pulsealert.data.remote.AlarmEvent
 import com.aguirre.pulsealert.data.remote.ConnectionState
+import com.aguirre.pulsealert.data.remote.MaintenanceEvent
 import com.aguirre.pulsealert.data.remote.MessageEvent
 import com.aguirre.pulsealert.data.remote.SocketDataSource
 import kotlinx.coroutines.flow.Flow
@@ -45,6 +46,9 @@ class DeviceRepository(
     val apiKey: Flow<String>       = prefs.apiKey
     val deviceAlias: Flow<String>  = prefs.deviceAlias
 
+    val isMaintenanceMode: Flow<Boolean> = prefs.isMaintenanceMode
+    val maintenanceUntilMs: Flow<Long>   = prefs.maintenanceUntilMs
+
     // ── Mensajes (Room) ───────────────────────────────────────────────
 
     /**
@@ -76,6 +80,7 @@ class DeviceRepository(
     val messageEvents: Flow<MessageEvent> = socketDataSource.messageEvents
     val pingEvents: Flow<Unit>         = socketDataSource.pingEvents
     val checkUpdateEvents: Flow<Unit>  = socketDataSource.checkUpdateEvents
+    val maintenanceEvents: Flow<MaintenanceEvent> = socketDataSource.maintenanceEvents
 
     // ── Acciones de configuración ─────────────────────────────────────
 
@@ -83,6 +88,15 @@ class DeviceRepository(
     suspend fun saveApiKey(key: String)         = prefs.saveApiKey(key)
     suspend fun saveDeviceAlias(alias: String)  = prefs.saveDeviceAlias(alias)
     suspend fun resetPrefsToDefaults()          = prefs.resetToDefaults()
+
+    /**
+     * Activa o desactiva el modo mantenimiento.
+     * Llamado desde ForegroundService al recibir SET_MAINTENANCE_MODE,
+     * o al reconectar exitosamente (active = false).
+     */
+    suspend fun setMaintenanceMode(active: Boolean, untilMs: Long = 0L) =
+        prefs.setMaintenanceMode(active, untilMs)
+    suspend fun getMaintenanceUntilMs(): Long = prefs.getMaintenanceUntilMs()
 
     // ── Acciones de mensajes ──────────────────────────────────────────
 
@@ -138,8 +152,7 @@ class DeviceRepository(
      */
     fun sendPong() = socketDataSource.sendPong()
 
-    /**
-     * Devuelve true si el socket está conectado.
-     */
     fun isSocketConnected(): Boolean = socketDataSource.isConnected()
+
+    fun disableSocketReconnection() = socketDataSource.disableReconnection()
 }
