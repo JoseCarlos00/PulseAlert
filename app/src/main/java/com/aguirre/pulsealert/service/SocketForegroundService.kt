@@ -87,7 +87,6 @@ class SocketForegroundService : Service() {
         
         alarmPlayer.stop()
         repository.disconnectSocket()
-        heartbeatJob?.cancel()
         
         super.onDestroy()
     }
