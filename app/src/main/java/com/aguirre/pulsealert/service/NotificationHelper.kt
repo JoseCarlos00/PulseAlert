@@ -31,12 +31,14 @@ class NotificationHelper(private val context: Context) {
         const val CHANNEL_ALARM      = "pulsealert_alarm"
         const val CHANNEL_MESSAGE    = "pulsealert_message"
         const val CHANNEL_MAINTENANCE = "pulsealert_maintenance"
+        const val CHANNEL_UPDATE = "pulsealert_update"
 
         // IDs de notificaciones
         const val NOTIF_ID_FOREGROUND = 1
         const val NOTIF_ID_ALARM      = 2
         const val NOTIF_ID_MESSAGE    = 3
         const val NOTIF_ID_MAINTENANCE = 4
+        const val  NOTIF_ID_UPDATE = 5
 
         // Extra para el Intent — indica qué pantalla abrir
         const val EXTRA_NAVIGATE_TO = "navigate_to"
@@ -237,6 +239,14 @@ class NotificationHelper(private val context: Context) {
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
                 description = "Notificación activa durante el mantenimiento del servidor"
+            },
+
+            NotificationChannel(
+                CHANNEL_UPDATE,
+                "Actualizaciones de la app",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Notifica cuando hay una nueva versión disponible"
             }
         )
 

@@ -32,6 +32,7 @@ class SocketForegroundService : Service() {
     private lateinit var repository: DeviceRepository
     private lateinit var alarmPlayer: AlarmPlayer
     private lateinit var notificationHelper: NotificationHelper
+    private lateinit var updateChecker: UpdateChecker
 
     // Scope propio del servicio. IMPORTANTE: Debe cancelarse en onDestroy.
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -47,6 +48,8 @@ class SocketForegroundService : Service() {
         repository         = RepositoryProvider.get(applicationContext)
         alarmPlayer        = AlarmPlayer(applicationContext)
         notificationHelper = NotificationHelper(applicationContext)
+        updateChecker      = UpdateChecker(applicationContext)
+
 
         // Iniciamos los observadores una sola vez al nacer el servicio
         observeConnectionState()
@@ -68,6 +71,11 @@ class SocketForegroundService : Service() {
                 notificationHelper.updateMaintenanceNotification(0L)
                 StatusCheckJobService.schedule(applicationContext, System.currentTimeMillis())
             }
+        }
+
+        // Verificar actualización al arrancar
+        serviceScope.launch {
+            updateChecker.checkAndNotify()
         }
     }
 
@@ -106,6 +114,16 @@ class SocketForegroundService : Service() {
         } else {
             // Socket ya conectado — solo actualizar la notificación al estado real
             notificationHelper.updateForegroundNotification(isConnected = true)
+        }
+
+        // Manejar descarga de actualización si viene de la notificación
+        if (intent?.action == UpdateChecker.ACTION_DOWNLOAD_UPDATE) {
+            val apkUrl = intent.getStringExtra(UpdateChecker.EXTRA_APK_URL)
+            if (!apkUrl.isNullOrBlank()) {
+                serviceScope.launch {
+                    updateChecker.downloadAndInstall(apkUrl)
+                }
+            }
         }
 
         return START_STICKY
@@ -205,7 +223,12 @@ class SocketForegroundService : Service() {
      */
     private fun observeCheckUpdateEvents() {
         repository.checkUpdateEvents
-            .onEach { Log.d(TAG, "CHECK_FOR_UPDATE recibido") }
+            .onEach {
+                Log.d(TAG, "CHECK_FOR_UPDATE recibido")
+                serviceScope.launch {
+                    updateChecker.checkAndNotify()
+                }
+            }
             .launchIn(serviceScope)
     }
 
