@@ -7,8 +7,10 @@ import com.aguirre.pulsealert.core.RepositoryProvider
 import com.aguirre.pulsealert.data.local.MessageEntity
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -25,6 +27,10 @@ class MessagesViewModel(application: Application) : AndroidViewModel(application
      */
     private val _navigationChannel = Channel<String>(capacity = Channel.CONFLATED)
     val navigationRequest: Flow<String> = _navigationChannel.receiveAsFlow()
+
+    private val _newMessageIds = MutableStateFlow<Set<Int>>(emptySet())
+    val newMessageIds: StateFlow<Set<Int>> = repository.newMessageIds
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
 
     val messages: StateFlow<List<MessageEntity>> = repository.allMessages
         .stateIn(
@@ -65,5 +71,13 @@ class MessagesViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             repository.deleteAllMessages()
         }
+    }
+
+    fun setScreenActive(active: Boolean) {
+        repository.setMessagesScreenActive(active)
+    }
+
+    fun clearNew(messageId: Int) {
+        viewModelScope.launch { repository.clearNewMessage(messageId) }
     }
 }

@@ -10,6 +10,8 @@ import com.aguirre.pulsealert.data.remote.MaintenanceEvent
 import com.aguirre.pulsealert.data.remote.MessageEvent
 import com.aguirre.pulsealert.data.remote.SocketDataSource
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 
 /**
  * Fuente única de verdad de la app.
@@ -106,13 +108,15 @@ class DeviceRepository(
      * Persiste un mensaje entrante en Room.
      * Llamado desde el ForegroundService al recibir MESSAGE_RECEIVE.
      */
-    suspend fun saveMessage(event: MessageEvent) {
-        messageDao.insert(
+    suspend fun saveMessage(event: MessageEvent, forceRead: Boolean = false) {
+        val id = messageDao.insertAndGetId(
             MessageEntity(
                 message = event.message,
-                sender  = event.sender
+                sender  = event.sender,
+                isRead  = forceRead
             )
         )
+        if (forceRead) markMessageAsNew(id.toInt())
     }
 
     /**
@@ -161,4 +165,24 @@ class DeviceRepository(
 
     fun setOnMaintenanceDetectedListener(listener: (Long) -> Unit) =
         socketDataSource.setOnMaintenanceDetectedListener(listener)
+
+    // ── Estado de UI ──────────────────────────────────────────────────────
+
+    private val _isMessagesScreenActive = MutableStateFlow(false)
+    val isMessagesScreenActive: StateFlow<Boolean> = _isMessagesScreenActive
+
+    private val _newMessageIds = MutableStateFlow<Set<Int>>(emptySet())
+    val newMessageIds: StateFlow<Set<Int>> = _newMessageIds
+
+    fun setMessagesScreenActive(active: Boolean) {
+        _isMessagesScreenActive.value = active
+    }
+
+    fun markMessageAsNew(messageId: Int) {
+        _newMessageIds.value += messageId
+    }
+
+    fun clearNewMessage(messageId: Int) {
+        _newMessageIds.value -= messageId
+    }
 }

@@ -27,7 +27,7 @@ interface MessageDao {
      * los ID son autogenerados y no debería haber conflictos.
      */
     @Insert(onConflict = OnConflictStrategy.IGNORE)
-    suspend fun insert(message: MessageEntity)
+    suspend fun insertAndGetId(message: MessageEntity): Long
 
     /**
      * Devuelve todos los mensajes ordenados del más reciente al más antiguo.

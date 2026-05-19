@@ -1,5 +1,7 @@
 package com.aguirre.pulsealert.ui.components
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,11 +21,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.aguirre.pulsealert.data.local.MessageEntity
+import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -33,15 +38,35 @@ import java.util.Locale
  * Los mensajes no leídos tienen el contenedor con más contraste.
  */
 @Composable
-fun MessageItem(message: MessageEntity) {
+fun MessageItem(
+    message: MessageEntity,
+    isNew: Boolean = false,
+    onAnimationEnd: () -> Unit = {}
+) {
+    // Animación de color — parte de primaryContainer y vuelve al color normal
+    val highlightColor = MaterialTheme.colorScheme.primaryContainer
+    val normalColor = if (!message.isRead)
+        MaterialTheme.colorScheme.primaryContainer
+    else
+        MaterialTheme.colorScheme.surfaceVariant
+
+    val animatedColor by animateColorAsState(
+        targetValue = if (isNew) highlightColor else normalColor,
+        animationSpec = tween(durationMillis = 600),
+        label = "messageHighlight"
+    )
+
+    // Disparar el reset después de 2 segundos
+    LaunchedEffect (isNew) {
+        if (isNew) {
+            delay(2000)
+            onAnimationEnd()
+        }
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = if (!message.isRead)
-                MaterialTheme.colorScheme.primaryContainer
-            else
-                MaterialTheme.colorScheme.surfaceVariant
-        )
+        colors = CardDefaults.cardColors(containerColor = animatedColor)
     ) {
         Column(
             modifier = Modifier.padding(14.dp),

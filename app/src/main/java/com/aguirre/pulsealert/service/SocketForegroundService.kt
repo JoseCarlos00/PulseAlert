@@ -166,9 +166,11 @@ class SocketForegroundService : Service() {
             .onEach { event ->
                 Log.d(TAG, "MESSAGE_RECEIVE único: ${event.sender} → ${event.message}")
 
-                // Guarda en Room (MessagesScreen se actualiza sola)
-                repository.saveMessage(event)
-                notificationHelper.showMessageNotification(event.sender, event.message)
+                repository.saveMessage(event, forceRead = repository.isMessagesScreenActive.value)
+
+                if (!repository.isMessagesScreenActive.value) {
+                    notificationHelper.showMessageNotification(event.sender, event.message)
+                }
             }
             .launchIn(serviceScope)
     }

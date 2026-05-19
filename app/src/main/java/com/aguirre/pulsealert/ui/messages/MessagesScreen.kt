@@ -19,6 +19,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -37,12 +38,20 @@ fun MessagesScreen(
     viewModel: MessagesViewModel = viewModel()
 ) {
     val messages by viewModel.messages.collectAsStateWithLifecycle()
+    val newIds by viewModel.newMessageIds.collectAsStateWithLifecycle()
     var showDeleteDialog by remember { mutableStateOf(false) }
 
     // Marca todos como leídos al entrar a la pantalla.
     // LaunchedEffect con Unit solo se ejecuta una vez al componer.
     LaunchedEffect(Unit) {
         viewModel.markAllAsRead()
+    }
+
+    // Informa al Repository (y por ende al ForegroundService)
+    // que el usuario está viendo esta pantalla
+    DisposableEffect(Unit) {
+        viewModel.setScreenActive(true)
+        onDispose { viewModel.setScreenActive(false) }
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -80,10 +89,12 @@ fun MessagesScreen(
                     // key evita recomposiciones innecesarias al insertar
                     key = { it.id }
                 ) { message ->
-                    MessageItem(message = message)
+                    MessageItem(
+                        message = message,
+                        isNew = message.id in newIds,
+                        onAnimationEnd = { viewModel.clearNew(message.id) }
+                    )
                 }
-
-                item { Spacer(Modifier.size(8.dp)) }
             }
         }
     }
