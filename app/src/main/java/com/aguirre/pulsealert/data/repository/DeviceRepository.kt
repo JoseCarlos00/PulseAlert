@@ -46,6 +46,7 @@ class DeviceRepository(
 
     val serverUrl: Flow<String>    = prefs.serverUrl
     val statusUrl: Flow<String> = prefs.statusUrl
+    val updateUrl: Flow<String> = prefs.updateUrl
     val apiKey: Flow<String>       = prefs.apiKey
     val deviceAlias: Flow<String>  = prefs.deviceAlias
 
@@ -88,10 +89,11 @@ class DeviceRepository(
     // ── Acciones de configuración ─────────────────────────────────────
 
     suspend fun saveServerUrl(url: String)      = prefs.saveServerUrl(url)
+    suspend fun saveStatusUrl(url: String)      = prefs.saveStatusUrl(url)
+    suspend fun saveUpdateUrl(url: String) = prefs.saveUpdateUrl(url)
     suspend fun saveApiKey(key: String)         = prefs.saveApiKey(key)
     suspend fun saveDeviceAlias(alias: String)  = prefs.saveDeviceAlias(alias)
     suspend fun resetPrefsToDefaults()          = prefs.resetToDefaults()
-    suspend fun saveStatusUrl(url: String)      = prefs.saveStatusUrl(url)
 
     /**
      * Activa o desactiva el modo mantenimiento.

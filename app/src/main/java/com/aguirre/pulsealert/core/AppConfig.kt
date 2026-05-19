@@ -18,6 +18,8 @@ object AppConfig {
     // URL del endpoint /status (puede ser un servicio independiente en la nube
     const val DEFAULT_STATUS_URL = "http://192.168.15.189:9001/status"
 
+    const val DEFAULT_UPDATE_URL = "https://raw.githubusercontent.com/tu-usuario/tu-repo/main/release/release.json"
+
     // API Key que el servidor espera en el handshake (query param "apiKey")
     const val DEFAULT_API_KEY = "6e1d18835ed50aa6b50d345af9c73093bd61d52c5349ea"
 

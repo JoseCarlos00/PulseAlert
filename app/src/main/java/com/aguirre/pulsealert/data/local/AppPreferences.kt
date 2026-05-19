@@ -43,6 +43,7 @@ class AppPreferences(private val context: Context) {
         // stringPreferencesKey garantiza que no mezcles tipos por error.
         private val KEY_SERVER_URL   = stringPreferencesKey("server_url")
         private val KEY_STATUS_URL = stringPreferencesKey("status_url")
+        private val KEY_UPDATE_URL = stringPreferencesKey("update_url")
         private val KEY_API_KEY      = stringPreferencesKey("api_key")
         private val KEY_DEVICE_ALIAS = stringPreferencesKey("device_alias")
         private val KEY_MAINTENANCE_MODE      = booleanPreferencesKey("maintenance_mode")
@@ -57,6 +58,14 @@ class AppPreferences(private val context: Context) {
      */
     val serverUrl: Flow<String> = context.dataStore.data.map { prefs ->
         prefs[KEY_SERVER_URL] ?: AppConfig.DEFAULT_SERVER_URL
+    }
+
+    val statusUrl: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[KEY_STATUS_URL] ?: AppConfig.DEFAULT_STATUS_URL
+    }
+
+    val updateUrl: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[KEY_UPDATE_URL] ?: AppConfig.DEFAULT_UPDATE_URL
     }
 
     /**
@@ -83,10 +92,6 @@ class AppPreferences(private val context: Context) {
         prefs[KEY_MAINTENANCE_UNTIL_MS] ?: 0L
     }
 
-    val statusUrl: Flow<String> = context.dataStore.data.map { prefs ->
-        prefs[KEY_STATUS_URL] ?: AppConfig.DEFAULT_STATUS_URL
-    }
-
     // ── Funciones de escritura ────────────────────────────────────────
 
     /**
@@ -96,6 +101,18 @@ class AppPreferences(private val context: Context) {
     suspend fun saveServerUrl(url: String) {
         context.dataStore.edit { prefs ->
             prefs[KEY_SERVER_URL] = url
+        }
+    }
+
+    suspend fun saveStatusUrl(url: String) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_STATUS_URL] = url
+        }
+    }
+
+    suspend fun saveUpdateUrl(url: String) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_UPDATE_URL] = url
         }
     }
 
@@ -121,11 +138,6 @@ class AppPreferences(private val context: Context) {
     suspend fun getMaintenanceUntilMs(): Long =
         context.dataStore.data.map { it[KEY_MAINTENANCE_UNTIL_MS] ?: 0L }.first()
 
-    suspend fun saveStatusUrl(url: String) {
-        context.dataStore.edit { prefs ->
-            prefs[KEY_STATUS_URL] = url
-        }
-    }
 
     /**
      * Restablece todos los valores a los defaults de AppConfig.
@@ -134,11 +146,12 @@ class AppPreferences(private val context: Context) {
     suspend fun resetToDefaults() {
         context.dataStore.edit { prefs ->
             prefs[KEY_SERVER_URL]   = AppConfig.DEFAULT_SERVER_URL
+            prefs[KEY_STATUS_URL] = AppConfig.DEFAULT_STATUS_URL
+            prefs[KEY_UPDATE_URL] = AppConfig.DEFAULT_UPDATE_URL
             prefs[KEY_API_KEY]      = AppConfig.DEFAULT_API_KEY
             prefs[KEY_DEVICE_ALIAS] = AppConfig.DEFAULT_DEVICE_ALIAS
             prefs[KEY_MAINTENANCE_MODE]     = false
             prefs[KEY_MAINTENANCE_UNTIL_MS] = 0L
-            prefs[KEY_STATUS_URL] = AppConfig.DEFAULT_STATUS_URL
         }
     }
 }
