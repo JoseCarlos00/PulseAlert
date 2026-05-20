@@ -8,6 +8,7 @@ import android.os.Build
 import android.provider.Settings
 import android.util.Log
 import androidx.core.content.FileProvider
+import androidx.core.content.pm.PackageInfoCompat.getLongVersionCode
 import com.aguirre.pulsealert.R
 import com.aguirre.pulsealert.core.RepositoryProvider
 import kotlinx.coroutines.Dispatchers
@@ -89,15 +90,10 @@ class UpdateChecker(private val context: Context) {
     suspend fun downloadAndInstall(apkUrl: String) = withContext(Dispatchers.IO) {
         try {
             Log.d(TAG, "Descargando APK desde: $apkUrl")
-            val connection = (URL(apkUrl).openConnection() as HttpURLConnection).apply {
-                connect()
-            }
-
+            val connection = (URL(apkUrl).openConnection() as HttpURLConnection).apply { connect() }
             if (connection.responseCode == HttpURLConnection.HTTP_OK) {
                 val file = File(context.externalCacheDir, "update.apk")
-                file.outputStream().use { fos ->
-                    connection.inputStream.copyTo(fos)
-                }
+                file.outputStream().use { fos -> connection.inputStream.copyTo(fos) }
                 Log.i(TAG, "APK descargado. Iniciando instalación.")
                 installApk(file)
             } else {
@@ -114,12 +110,14 @@ class UpdateChecker(private val context: Context) {
     // ── Privados ──────────────────────────────────────────────────────
 
     private fun showUpdateNotification(downloadUrl: String) {
-        // Intent hacia el ForegroundService para iniciar la descarga
-        val intent = Intent(context, SocketForegroundService::class.java).apply {
+        // Lanzar MainActivity con el intent de descarga
+        val intent = Intent(context, com.aguirre.pulsealert.MainActivity::class.java).apply {
             action = ACTION_DOWNLOAD_UPDATE
             putExtra(EXTRA_APK_URL, downloadUrl)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         }
-        val pendingIntent = PendingIntent.getService(
+
+        val pendingIntent = PendingIntent.getActivity(
             context, 0, intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
@@ -148,9 +146,7 @@ class UpdateChecker(private val context: Context) {
             return
         }
 
-        val uri =
-            FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
-
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
         val intent = Intent(Intent.ACTION_VIEW).apply {
             setDataAndType(uri, "application/vnd.android.package-archive")
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -167,12 +163,7 @@ class UpdateChecker(private val context: Context) {
     private fun getCurrentVersionCode(): Long {
         return try {
             val info = context.packageManager.getPackageInfo(context.packageName, 0)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                info.longVersionCode
-            } else {
-                @Suppress("DEPRECATION")
-                info.versionCode.toLong()
-            }
-        } catch (e: Exception) { -1L }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) info.longVersionCode else getLongVersionCode(info)
+        } catch (_: Exception) { -1L }
     }
 }

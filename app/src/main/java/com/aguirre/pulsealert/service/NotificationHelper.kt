@@ -42,6 +42,7 @@ class NotificationHelper(private val context: Context) {
 
         // Extra para el Intent — indica qué pantalla abrir
         const val EXTRA_NAVIGATE_TO = "navigate_to"
+        const val ACTION_NAV_MESSAGES = "com.aguirre.pulsealert.ACTION_NAV_MESSAGES"
         const val NAV_MESSAGES      = "messages"
     }
 
@@ -188,6 +189,8 @@ class NotificationHelper(private val context: Context) {
      */
     private fun buildMessagesIntent(): PendingIntent {
         val intent = Intent(context, MainActivity::class.java).apply {
+            action = ACTION_NAV_MESSAGES
+            addCategory(Intent.CATEGORY_LAUNCHER)
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
             putExtra(EXTRA_NAVIGATE_TO, NAV_MESSAGES)
         }
