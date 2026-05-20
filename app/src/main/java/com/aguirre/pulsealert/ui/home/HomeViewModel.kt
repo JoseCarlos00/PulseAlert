@@ -13,7 +13,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.util.Locale
 
 data class HomeUiState(
     val connectionState: ConnectionState = ConnectionState.DISCONNECTED,
@@ -52,7 +51,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 .versionName ?: "—"
         } catch (e: Exception) { "—" }
 
-        val ipAddress = getLocalIpAddress()
+        val ipAddress = RepositoryProvider.getLocalIpAddress(context)
 
         _uiState.update {
             it.copy(
@@ -78,24 +77,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 _uiState.update { it.copy(deviceAlias = alias) }
             }
         }
-    }
-
-    private fun getLocalIpAddress(): String {
-        return try {
-            val wm = getApplication<Application>()
-                .getSystemService(android.content.Context.WIFI_SERVICE)
-                    as android.net.wifi.WifiManager
-            @Suppress("DEPRECATION")
-            val ip = wm.connectionInfo.ipAddress
-            String.format(
-                Locale.US,
-                "%d.%d.%d.%d",
-                ip and 0xff,
-                ip shr 8 and 0xff,
-                ip shr 16 and 0xff,
-                ip shr 24 and 0xff
-            )
-        } catch (e: Exception) { "—" }
     }
 
     fun reconnect() {

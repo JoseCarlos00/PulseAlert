@@ -103,7 +103,7 @@ object RepositoryProvider {
      * Obtiene la IP local del dispositivo en la red WiFi.
      * Devuelve "0.0.0.0" si no hay conexión o no se puede obtener.
      */
-    private fun getLocalIpAddress(context: Context): String {
+    fun getLocalIpAddress(context: Context): String {
         return try {
             val wifiManager = context.applicationContext
                 .getSystemService(Context.WIFI_SERVICE) as android.net.wifi.WifiManager
