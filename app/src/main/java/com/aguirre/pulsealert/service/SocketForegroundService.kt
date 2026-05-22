@@ -75,6 +75,13 @@ class SocketForegroundService : Service() {
             }
         }
 
+        repository.setOnDeviceAliasReceivedListener { alias ->
+            serviceScope.launch {
+                Log.d(TAG, "Alias recibido del servidor: $alias")
+                repository.saveDeviceAlias(alias)
+            }
+        }
+
         // Verificar actualización al arrancar
         serviceScope.launch {
             updateChecker.checkAndNotify()

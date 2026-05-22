@@ -100,6 +100,8 @@ class SocketDataSource(
     private val _maintenanceEvents = MutableSharedFlow<MaintenanceEvent>(replay = 0, extraBufferCapacity = 64)
     val maintenanceEvents: Flow<MaintenanceEvent> = _maintenanceEvents.asSharedFlow()
 
+    private var onDeviceAliasReceived: ((String) -> Unit)? = null
+
     private var consecutiveFailCount = 0
     private var onMaintenanceDetected: ((Long) -> Unit)? = null
 
@@ -205,9 +207,13 @@ class SocketDataSource(
         socket.emit(SocketEvents.Outgoing.REGISTER_DEVICE, payload, Ack { args ->
             val response = args?.firstOrNull() as? JSONObject
             val status = response?.optString("status")
+            val deviceAlias = response?.optString("equipo")
 
             if (status == "OK") {
-                Log.d(TAG, "Dispositivo registrado correctamente")
+                Log.d(TAG, "Dispositivo [$deviceAlias] registrado correctamente")
+                deviceAlias?.takeIf { it.isNotBlank() }?.let {
+                    onDeviceAliasReceived?.invoke(it)
+                }
             } else {
                 val reason = response?.optString("reason") ?: "sin motivo"
                 Log.e(TAG, "Error en REGISTER_DEVICE: $reason")
@@ -400,5 +406,9 @@ class SocketDataSource(
      */
     fun setOnMaintenanceDetectedListener(listener: (Long) -> Unit) {
         onMaintenanceDetected = listener
+    }
+
+    fun setOnDeviceAliasReceivedListener(listener: (String) -> Unit) {
+        onDeviceAliasReceived = listener
     }
 }

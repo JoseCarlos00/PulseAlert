@@ -167,6 +167,9 @@ class DeviceRepository(
     fun setOnMaintenanceDetectedListener(listener: (Long) -> Unit) =
         socketDataSource.setOnMaintenanceDetectedListener(listener)
 
+    fun setOnDeviceAliasReceivedListener(listener: (String) -> Unit) =
+        socketDataSource.setOnDeviceAliasReceivedListener(listener)
+
     // ── Estado de UI ──────────────────────────────────────────────────────
 
     private val _isMessagesScreenActive = MutableStateFlow(false)
