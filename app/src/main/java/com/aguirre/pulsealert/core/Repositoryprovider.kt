@@ -122,21 +122,4 @@ object RepositoryProvider {
             "0.0.0.0"
         }
     }
-
-    /**
-     * Reinicia el singleton. Útil cuando el usuario guarda una nueva URL
-     * en SettingsScreen — el ForegroundService debe reconectarse con la
-     * nueva configuración.
-     *
-     * Flujo de uso:
-     *  1. Usuario guarda nueva URL en SettingsScreen.
-     *  2. ForegroundService detecta el cambio (observando serverUrl Flow).
-     *  3. Llama reset() y luego get(context) para reconstruir con la nueva URL.
-     */
-    fun reset() {
-        synchronized(this) {
-            INSTANCE?.disconnectSocket()
-            INSTANCE = null
-        }
-    }
 }

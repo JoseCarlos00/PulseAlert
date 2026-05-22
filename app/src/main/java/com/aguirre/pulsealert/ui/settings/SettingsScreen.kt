@@ -86,10 +86,23 @@ fun SettingsScreen(
         )
 
         OutlinedTextField(
-            value = uiState.apiKey,
-            onValueChange = viewModel::onApiKeyChange,
-            label = { Text("API Key") },
-            placeholder = { Text("Clave secreta del servidor") },
+            value = uiState.statusUrl,
+            onValueChange = viewModel::onStatusUrlChange,
+            label = { Text("URL de estado") },
+            placeholder = { Text("https://mi-servicio.com/status") },
+            supportingText = { Text("Endpoint independiente para verificar mantenimiento.") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        OutlinedTextField(
+            value = uiState.updateUrl,
+            onValueChange = viewModel::onUpdateUrlChange,
+            label = { Text("URL de actualizaciones") },
+            placeholder = { Text("https://raw.githubusercontent.com/...") },
+            supportingText = { Text("JSON con la versión más reciente de la app.") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )

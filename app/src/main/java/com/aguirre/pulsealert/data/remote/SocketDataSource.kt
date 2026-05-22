@@ -73,7 +73,7 @@ enum class ConnectionState {
  * @param ipAddress   IP local del dispositivo.
  */
 class SocketDataSource(
-    private val serverUrl: String,
+    private var serverUrl: String,
     private val apiKey: String,
     private val androidId: String,
     private val deviceAlias: String,
@@ -370,6 +370,18 @@ class SocketDataSource(
     fun disableReconnection() {
         socket?.io()?.reconnection(false)
         Log.d(TAG, "Reconexión automática deshabilitada")
+    }
+
+    /**
+     * Reconecta el socket usando una nueva URL de servidor.
+     * Llamado desde ForegroundService cuando el usuario guarda
+     * una nueva URL en SettingsScreen.
+     */
+    fun reconnectWithNewUrl(newServerUrl: String) {
+        Log.d(TAG, "Reconectando con nueva URL: $newServerUrl")
+        serverUrl = newServerUrl
+        disconnect()
+        connect()
     }
 
     /**

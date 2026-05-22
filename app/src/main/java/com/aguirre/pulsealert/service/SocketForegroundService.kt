@@ -18,6 +18,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
@@ -59,6 +60,7 @@ class SocketForegroundService : Service() {
         observeCheckUpdateEvents()
         //startHeartbeat()
         observeMaintenanceEvents()
+        observeServerUrlChanges()
 
         // Detectar mantenimiento cuando el socket falla 10 veces consecutivas
         repository.setOnMaintenanceDetectedListener { _ ->
@@ -256,6 +258,21 @@ class SocketForegroundService : Service() {
                 StatusCheckJobService.schedule(applicationContext, event.untilTimestampMs)
 
                 Log.w(TAG, "Socket desconectado. Job programado.")
+            }
+            .launchIn(serviceScope)
+    }
+
+    /**
+     * Observa cambios en la URL del servidor.
+     * drop(1) ignora el valor inicial — solo reacciona a cambios reales
+     * que ocurren mientras el servicio está corriendo.
+     */
+    private fun observeServerUrlChanges() {
+        repository.serverUrl
+            .drop(1)
+            .onEach { newUrl ->
+                Log.d(TAG, "URL del servidor cambiada. Reconectando con: $newUrl")
+                repository.reconnectWithNewUrl(newUrl)
             }
             .launchIn(serviceScope)
     }

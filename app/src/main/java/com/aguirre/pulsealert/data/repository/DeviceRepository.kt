@@ -47,7 +47,6 @@ class DeviceRepository(
     val serverUrl: Flow<String>    = prefs.serverUrl
     val statusUrl: Flow<String> = prefs.statusUrl
     val updateUrl: Flow<String> = prefs.updateUrl
-    val apiKey: Flow<String>       = prefs.apiKey
     val deviceAlias: Flow<String>  = prefs.deviceAlias
 
     val isMaintenanceMode: Flow<Boolean> = prefs.isMaintenanceMode
@@ -91,7 +90,6 @@ class DeviceRepository(
     suspend fun saveServerUrl(url: String)      = prefs.saveServerUrl(url)
     suspend fun saveStatusUrl(url: String)      = prefs.saveStatusUrl(url)
     suspend fun saveUpdateUrl(url: String) = prefs.saveUpdateUrl(url)
-    suspend fun saveApiKey(key: String)         = prefs.saveApiKey(key)
     suspend fun saveDeviceAlias(alias: String)  = prefs.saveDeviceAlias(alias)
     suspend fun resetPrefsToDefaults()          = prefs.resetToDefaults()
 
@@ -163,6 +161,7 @@ class DeviceRepository(
     fun isSocketConnected(): Boolean = socketDataSource.isConnected()
 
     fun disableSocketReconnection() = socketDataSource.disableReconnection()
+    fun reconnectWithNewUrl(newServerUrl: String) = socketDataSource.reconnectWithNewUrl(newServerUrl)
     fun enableSocketReconnection() = socketDataSource.enableReconnection()
 
     fun setOnMaintenanceDetectedListener(listener: (Long) -> Unit) =

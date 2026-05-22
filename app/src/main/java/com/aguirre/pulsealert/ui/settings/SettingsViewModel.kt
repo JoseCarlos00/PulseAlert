@@ -3,7 +3,7 @@ package com.aguirre.pulsealert.ui.settings
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.aguirre.pulsealert.data.local.AppPreferences
+import com.aguirre.pulsealert.core.RepositoryProvider
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,7 +20,8 @@ import kotlinx.coroutines.launch
  */
 data class SettingsUiState(
     val serverUrl: String = "",
-    val apiKey: String = "",
+    val statusUrl: String = "",
+    val updateUrl: String = "",
     val deviceAlias: String = "",
     val isSaved: Boolean = false,
     val isLoading: Boolean = true
@@ -28,12 +29,6 @@ data class SettingsUiState(
 
 /**
  * ViewModel de SettingsScreen.
- *
- * Extiende AndroidViewModel (en lugar de ViewModel) porque necesita
- * el Context de la aplicación para crear AppPreferences.
- *
- * Cuando implementes Hilt, AppPreferences se inyectará directamente
- * y podrás volver a ViewModel normal.
  *
  * Flujo:
  *  1. Al crearse, carga los valores guardados en DataStore → uiState
@@ -43,7 +38,7 @@ data class SettingsUiState(
  */
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val prefs = AppPreferences(application)
+    private val repository = RepositoryProvider.get(application)
 
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
@@ -59,15 +54,17 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private fun loadSettings() {
         viewModelScope.launch {
             combine(
-                prefs.serverUrl,
-                prefs.apiKey,
-                prefs.deviceAlias
-            ) { url, key, alias ->
+                repository.serverUrl,
+                repository.statusUrl,
+                repository.updateUrl,
+                repository.deviceAlias
+            ) { serverUrl, statusUrl, updateUrl, deviceAlias ->
                 SettingsUiState(
-                    serverUrl = url,
-                    apiKey = key,
-                    deviceAlias = alias,
-                    isLoading = false
+                    serverUrl   = serverUrl,
+                    statusUrl   = statusUrl,
+                    updateUrl   = updateUrl,
+                    deviceAlias = deviceAlias,
+                    isLoading   = false
                 )
             }.collect { state ->
                 _uiState.value = state
@@ -83,8 +80,12 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         _uiState.update { it.copy(serverUrl = value, isSaved = false) }
     }
 
-    fun onApiKeyChange(value: String) {
-        _uiState.update { it.copy(apiKey = value, isSaved = false) }
+    fun onStatusUrlChange(value: String) {
+        _uiState.update { it.copy(statusUrl = value, isSaved = false) }
+    }
+
+    fun onUpdateUrlChange(value: String) {
+        _uiState.update { it.copy(updateUrl = value, isSaved = false) }
     }
 
     fun onDeviceAliasChange(value: String) {
@@ -100,9 +101,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun saveSettings() {
         viewModelScope.launch {
             val state = _uiState.value
-            prefs.saveServerUrl(state.serverUrl)
-            prefs.saveApiKey(state.apiKey)
-            prefs.saveDeviceAlias(state.deviceAlias)
+            repository.saveServerUrl(state.serverUrl)
+            repository.saveStatusUrl(state.statusUrl)
+            repository.saveUpdateUrl(state.updateUrl)
+            repository.saveDeviceAlias(state.deviceAlias)
             _uiState.update { it.copy(isSaved = true) }
         }
     }
@@ -114,7 +116,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
      */
     fun resetSettings() {
         viewModelScope.launch {
-            prefs.resetToDefaults()
+            repository.resetPrefsToDefaults()
             _uiState.update { it.copy(isSaved = false) }
         }
     }
