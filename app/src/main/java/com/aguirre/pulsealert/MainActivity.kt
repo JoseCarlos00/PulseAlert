@@ -89,8 +89,11 @@ class MainActivity : ComponentActivity() {
      * Procesa el Intent para disparar la navegación si viene de una notificación.
      */
     private fun handleIntent(intent: Intent?) {
+        Log.d("MainActivity", "handleIntent: action=${intent?.action}")
+        
         when (intent?.action) {
-            NotificationHelper.NAV_MESSAGES -> {
+            // SOLUCIÓN: Usar ACTION_NAV_MESSAGES para que coincida con el action del Intent
+            NotificationHelper.ACTION_NAV_MESSAGES -> {
                 Log.d("MainActivity", "Navegando a Mensajes vía Deep Link")
                 messagesViewModel.triggerNavigation(Screen.Messages.route)
             }

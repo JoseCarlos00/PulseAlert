@@ -117,7 +117,14 @@ class SocketDataSource(
      * Una vez conectado, registra el dispositivo con REGISTER_DEVICE.
      */
     fun connect() {
-        if (socket?.connected() == true) return
+        // SOLUCIÓN DUPLICIDAD: Si ya existe una instancia, no creamos otra.
+        if (socket != null) {
+            Log.d(TAG, "El socket ya existe, intentando conectar instancia previa...")
+            if (socket?.connected() == false) {
+                socket?.connect()
+            }
+            return
+        }
 
         try {
             val options = IO.Options.builder()
