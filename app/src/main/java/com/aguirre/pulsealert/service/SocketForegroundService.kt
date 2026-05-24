@@ -15,7 +15,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
@@ -34,6 +35,9 @@ class SocketForegroundService : Service() {
 
     // Scope propio del servicio. IMPORTANTE: Debe cancelarse en onDestroy.
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
+    // URL activa en el socket — usada para detectar cambios reales
+    private var activeSocketUrl: String = ""
 
     // ── Ciclo de vida ─────────────────────────────────────────────────
 
@@ -115,6 +119,8 @@ class SocketForegroundService : Service() {
                 } else {
                     // Mantenimiento expirado o no activo — limpiar y conectar normal
                     repository.setMaintenanceMode(false)
+                    // Leer la URL actual y registrarla antes de conectar
+                    activeSocketUrl = repository.serverUrl.first()
                     repository.connectSocket()
                 }
             }
@@ -260,7 +266,7 @@ class SocketForegroundService : Service() {
                 // 2. Deshabilitar reconexión PRIMERO
                 repository.disableSocketReconnection()
 
-                // 3. Ahora sí desconectar — disconnect() interno ya hace el orden correcto
+                // 3. Desconectar
                 repository.disconnectSocket()
 
                 // 4. Notificación
@@ -275,15 +281,30 @@ class SocketForegroundService : Service() {
     }
 
     /**
-     * Observa cambios en la URL del servidor.
-     * drop(1) ignora el valor inicial — solo reacciona a cambios reales
-     * que ocurren mientras el servicio está corriendo.
+     * FIX: En lugar de drop(1), comparamos la URL emitida contra
+     * la URL que el socket está usando actualmente.
+     *
+     * drop(1) falla porque:
+     *  - Solo descarta el primer valor POR SUSCRIPCIÓN, no por vida del Flow.
+     *  - Si el servicio se recrea (START_STICKY), el nuevo observer hace
+     *    otro drop(1) y DataStore re-emite el valor guardado → reconexión falsa.
+     *
+     * distinctUntilChanged() + comparación explícita garantizan que solo
+     * reconectamos si la URL realmente es diferente a la que ya usamos.
      */
     private fun observeServerUrlChanges() {
         repository.serverUrl
-            .drop(1)
+            .distinctUntilChanged()
             .onEach { newUrl ->
-                Log.d(TAG, "URL del servidor cambiada. Reconectando con: $newUrl")
+                if (newUrl == activeSocketUrl) {
+                    // Misma URL — no hacer nada (arranque normal o recreación del servicio)
+                    Log.d(TAG, "URL sin cambio real ($newUrl), ignorando")
+                    return@onEach
+                }
+
+                // URL genuinamente diferente a la activa
+                Log.d(TAG, "URL cambiada: '$activeSocketUrl' → '$newUrl'. Reconectando.")
+                activeSocketUrl = newUrl
                 repository.reconnectWithNewUrl(newUrl)
             }
             .launchIn(serviceScope)
