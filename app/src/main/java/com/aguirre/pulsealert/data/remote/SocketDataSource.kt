@@ -6,7 +6,10 @@ import io.socket.client.IO
 import io.socket.client.Socket
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import org.json.JSONObject
 import java.net.URI
 
@@ -85,8 +88,8 @@ class SocketDataSource(
     @Volatile
     private var reconnectionEnabled: Boolean = true
 
-    private val _connectionState = MutableSharedFlow<ConnectionState>(replay = 1)
-    val connectionState: Flow<ConnectionState> = _connectionState.asSharedFlow()
+    private val _connectionState = MutableStateFlow(ConnectionState.DISCONNECTED)
+    val connectionState: StateFlow<ConnectionState> = _connectionState.asStateFlow()
 
     private val _alarmEvents = MutableSharedFlow<AlarmEvent>(replay = 0, extraBufferCapacity = 64)
     val alarmEvents: Flow<AlarmEvent> = _alarmEvents.asSharedFlow()

@@ -18,7 +18,6 @@ import kotlinx.coroutines.flow.StateFlow
  *
  * Todos los ViewModels y el ForegroundService obtienen datos desde aquí.
  * Nadie habla directamente con AppPreferences, MessageDao o SocketDataSource
- * — todo pasa por el Repository.
  *
  * Responsabilidades:
  *  - Exponer los Flows de configuración (DataStore).
@@ -73,7 +72,7 @@ class DeviceRepository(
      * Estado actual de la conexión: CONNECTING, CONNECTED, DISCONNECTED, ERROR.
      * HomeViewModel lo observa para mostrar el indicador de estado.
      */
-    val connectionState: Flow<ConnectionState> = socketDataSource.connectionState
+    val connectionState: StateFlow<ConnectionState> = socketDataSource.connectionState
 
     // ——— Eventos del socket ———
     // El ForegroundService se suscribe a estos Flows para reaccionar
