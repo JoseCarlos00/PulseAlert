@@ -82,6 +82,10 @@ class SocketDataSource(
 ) {
     private var socket: Socket? = null
 
+    // FIX PROBLEMA 2: Flag que impide reconexiones durante mantenimiento
+    @Volatile
+    private var reconnectionEnabled: Boolean = true
+
     private val _connectionState = MutableSharedFlow<ConnectionState>(replay = 1)
     val connectionState: Flow<ConnectionState> = _connectionState.asSharedFlow()
 
@@ -117,7 +121,12 @@ class SocketDataSource(
      * Una vez conectado, registra el dispositivo con REGISTER_DEVICE.
      */
     fun connect() {
-        // SOLUCIÓN DUPLICIDAD: Si ya existe una instancia, no creamos otra.
+        // FIX PROBLEMA 2: Si el mantenimiento está activo, no conectar
+        if (!reconnectionEnabled) {
+            Log.w(TAG, "connect() ignorado — modo mantenimiento activo")
+            return
+        }
+
         if (socket != null) {
             Log.d(TAG, "El socket ya existe, intentando conectar instancia previa...")
             if (socket?.connected() == false) {
@@ -136,11 +145,11 @@ class SocketDataSource(
                 .build()
 
             val newSocket = IO.socket(URI.create(serverUrl), options)
-            newSocket.off() 
+            newSocket.off()
 
             registerConnectionListeners(newSocket)
             registerIncomingEventListeners(newSocket)
-            
+
             socket = newSocket
             socket?.connect()
 
@@ -154,12 +163,44 @@ class SocketDataSource(
     }
 
     /**
-     * Desconecta el socket limpiamente.
-     * Llamado desde ForegroundService.onDestroy().
+     * FIX PROBLEMA 2: Desconexión limpia con orden correcto.
+     *
+     * Orden crítico:
+     *  1. Deshabilitar reconexión automática en el Manager de Socket.IO
+     *  2. Desconectar el socket (dispara EVENT_DISCONNECT)
+     *  3. Remover todos los listeners
+     *  4. Nullear la referencia
+     *
+     * Esto evita que Socket.IO intente reconectar entre pasos.
      */
     fun disconnect() {
-        socket?.disconnect()
-        socket?.off()
+        val s = socket ?: run {
+            Log.d(TAG, "disconnect() llamado pero socket ya era null")
+            return
+        }
+
+        // Paso 1: Deshabilitar reconexión ANTES de desconectar
+        try {
+            s.io()?.reconnection(false)
+        } catch (e: Exception) {
+            Log.w(TAG, "No se pudo deshabilitar reconexión: ${e.message}")
+        }
+
+        // Paso 2: Desconectar
+        try {
+            s.disconnect()
+        } catch (e: Exception) {
+            Log.w(TAG, "Error al desconectar: ${e.message}")
+        }
+
+        // Paso 3: Remover listeners
+        try {
+            s.off()
+        } catch (e: Exception) {
+            Log.w(TAG, "Error al remover listeners: ${e.message}")
+        }
+
+        // Paso 4: Nullear
         socket = null
         Log.d(TAG, "Socket desconectado y listeners removidos")
     }
@@ -202,7 +243,7 @@ class SocketDataSource(
      * Envía REGISTER_DEVICE tras conectar exitosamente.
      * Incluye androidId, ipAddress y appVersion según la documentación.
      *
-     * El servidor responde con { status: "OK" } o { status: "ERROR", reason: "..." }.
+     * El servidor responde con { status: "OK", equipo: "FME145" } o { status: "ERROR", reason: "..." }.
      */
     private fun registerDevice(socket: Socket) {
         val payload = JSONObject().apply {
@@ -257,7 +298,7 @@ class SocketDataSource(
                     durationSeconds = finalDuration,
                     deviceAlias = payload?.optString("deviceAlias", "desconocido") ?: "desconocido"
                 )
-                
+
                 _alarmEvents.tryEmit(event)
                 ack?.call(JSONObject().put("status", "OK"))
 
@@ -276,11 +317,11 @@ class SocketDataSource(
                     Log.w(TAG, "MESSAGE_RECEIVE recibido con mensaje vacío")
                     return@on
                 }
-                    val event = MessageEvent(
-                        message = message,
-                        sender = payload.optString("sender", "Panel Control")
-                    )
-                    _messageEvents.tryEmit(event)
+                val event = MessageEvent(
+                    message = message,
+                    sender = payload.optString("sender", "Panel Control")
+                )
+                _messageEvents.tryEmit(event)
 
                 val ack = args.lastOrNull() as? Ack
                 ack?.call(JSONObject().put("status", "OK"))
@@ -349,21 +390,6 @@ class SocketDataSource(
     }
 
     // ── Emisión de eventos ────────────────────────────────────────────
-
-    /**
-     * Envía el HEARTBEAT periódico al servidor.
-     * Llamado cada AppConfig.HEARTBEAT_INTERVAL_MS por el ForegroundService.
-     */
-    fun sendHeartbeat(battery: Int, charging: Boolean) {
-        val payload = JSONObject().apply {
-            put("deviceId", androidId)
-            put("battery", battery)
-            put("charging", charging)
-            put("timestamp", System.currentTimeMillis())
-        }
-        socket?.emit(SocketEvents.Outgoing.HEARTBEAT, payload)
-    }
-
     /**
      * Envía la respuesta PONG al servidor tras recibir un PING.
      * El ForegroundService llama esto después de reproducir el sonido (3s delay).
@@ -376,34 +402,41 @@ class SocketDataSource(
     fun isConnected(): Boolean = socket?.connected() == true
 
     /**
-     * Deshabilita la reconexión automática del socket.
-     * Llamado ANTES de disconnect() durante el modo mantenimiento,
-     * para evitar que Socket.IO intente reconectarse solo.
+     * FIX PROBLEMA 2: disableReconnection ahora también setea el flag interno.
+     * Esto hace que connect() rechace cualquier intento de reconexión posterior,
+     * incluso si el JobService o el servicio llaman connectSocket() por error.
      */
     fun disableReconnection() {
-        socket?.io()?.reconnection(false)
+        reconnectionEnabled = false
+        try {
+            socket?.io()?.reconnection(false)
+        } catch (e: Exception) {
+            Log.w(TAG, "disableReconnection: socket ya null o error: ${e.message}")
+        }
         Log.d(TAG, "Reconexión automática deshabilitada")
     }
 
     /**
-     * Reconecta el socket usando una nueva URL de servidor.
-     * Llamado desde ForegroundService cuando el usuario guarda
-     * una nueva URL en SettingsScreen.
+     * FIX PROBLEMA 2: enableReconnection rehabilita el flag interno
+     * ANTES de llamar connect(), para que el guard de connect() lo permita.
      */
+    fun enableReconnection() {
+        reconnectionEnabled = true
+        try {
+            socket?.io()?.reconnection(true)
+        } catch (e: Exception) {
+            Log.w(TAG, "enableReconnection: socket ya null o error: ${e.message}")
+        }
+        Log.d(TAG, "Reconexión automática rehabilitada")
+    }
+
     fun reconnectWithNewUrl(newServerUrl: String) {
         Log.d(TAG, "Reconectando con nueva URL: $newServerUrl")
         serverUrl = newServerUrl
+        // Asegurarse de que reconnectionEnabled esté true antes de reconectar
+        reconnectionEnabled = true
         disconnect()
         connect()
-    }
-
-    /**
-     * Rehabilita la reconexión automática del socket.
-     * Llamado desde StatusCheckJobService cuando el servidor vuelve a ACTIVE.
-     */
-    fun enableReconnection() {
-        socket?.io()?.reconnection(true)
-        Log.d(TAG, "Reconexión automática rehabilitada")
     }
 
     /**

@@ -2,19 +2,16 @@ package com.aguirre.pulsealert.service
 
 import android.app.Service
 import android.content.Intent
-import android.content.IntentFilter
 import android.content.pm.ServiceInfo
-import android.os.BatteryManager
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
-import com.aguirre.pulsealert.core.AppConfig
 import com.aguirre.pulsealert.core.RepositoryProvider
+import com.aguirre.pulsealert.data.remote.ConnectionState
 import com.aguirre.pulsealert.data.repository.DeviceRepository
 import com.aguirre.pulsealert.service.NotificationHelper.Companion.NOTIF_ID_FOREGROUND
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
@@ -38,8 +35,6 @@ class SocketForegroundService : Service() {
     // Scope propio del servicio. IMPORTANTE: Debe cancelarse en onDestroy.
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
-    private var heartbeatJob: Job? = null
-
     // ── Ciclo de vida ─────────────────────────────────────────────────
 
     override fun onCreate() {
@@ -58,7 +53,6 @@ class SocketForegroundService : Service() {
         observeMessageEvents()
         observePingEvents()
         observeCheckUpdateEvents()
-        //startHeartbeat()
         observeMaintenanceEvents()
         observeServerUrlChanges()
 
@@ -69,7 +63,9 @@ class SocketForegroundService : Service() {
                 // El JobService arranca inmediatamente (delayMs = 0)
                 Log.w(TAG, "10 fallos detectados. Lanzando StatusCheckJobService.")
                 repository.setMaintenanceMode(true, 0L)
+                // FIX PROBLEMA 2: deshabilitar reconexión ANTES de desconectar
                 repository.disableSocketReconnection()
+                repository.disconnectSocket()
                 notificationHelper.updateMaintenanceNotification(0L)
                 StatusCheckJobService.schedule(applicationContext, System.currentTimeMillis())
             }
@@ -91,7 +87,9 @@ class SocketForegroundService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.d(TAG, "onStartCommand: Recibido intent")
 
-        val notification = notificationHelper.buildForegroundNotification(isConnected = false)
+        // FIX PROBLEMA 1: usar el estado real del socket, no asumir false
+        val alreadyConnected = repository.isSocketConnected()
+        val notification = notificationHelper.buildForegroundNotification(isConnected = alreadyConnected)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(
@@ -120,10 +118,9 @@ class SocketForegroundService : Service() {
                     repository.connectSocket()
                 }
             }
-        } else {
-            // Socket ya conectado — solo actualizar la notificación al estado real
-            notificationHelper.updateForegroundNotification(isConnected = true)
         }
+        // FIX PROBLEMA 1: si ya estaba conectado, no necesitamos hacer nada más
+        // — el observer de connectionState ya mantendrá la notificación actualizada
 
         // Manejar descarga de actualización si viene de la notificación
         if (intent?.action == UpdateChecker.ACTION_DOWNLOAD_UPDATE) {
@@ -154,12 +151,14 @@ class SocketForegroundService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
-    // —— Observers (sin cambios en la lógica interna) ————
+    // ── Observers ─────────────────────────────────────────────────────
 
     private fun observeConnectionState() {
         repository.connectionState
             .onEach { state ->
-                val isConnected = state.name == "CONNECTED"
+                // FIX PROBLEMA 1: comparar con el enum, no con .name string
+                val isConnected = state == ConnectionState.CONNECTED
+                Log.d(TAG, "ConnectionState cambió: $state → isConnected=$isConnected")
                 notificationHelper.updateForegroundNotification(isConnected)
             }
             .launchIn(serviceScope)
@@ -191,8 +190,7 @@ class SocketForegroundService : Service() {
     private fun observeMessageEvents() {
         repository.messageEvents
             .onEach { event ->
-                Log.d(TAG, "MESSAGE_RECEIVE único: ${event.sender} → ${event.message}")
-
+                Log.d(TAG, "MESSAGE_RECEIVE: ${event.sender} → ${event.message}")
                 repository.saveMessage(event, forceRead = repository.isMessagesScreenActive.value)
 
                 if (!repository.isMessagesScreenActive.value) {
@@ -242,26 +240,33 @@ class SocketForegroundService : Service() {
     }
 
     /**
-     * Escucha SET_MAINTENANCE_MODE.
-     * Orquesta la desconexión limpia del socket, persiste el estado,
-     * muestra la notificación y programa el JobService para despertar.
+     * FIX PROBLEMA 2: orden correcto de operaciones en modo mantenimiento.
+     *
+     * Orden crítico:
+     *  1. Persistir estado
+     *  2. Deshabilitar reconexión (flag interno + Socket.IO Manager)
+     *  3. Desconectar (disconnect() ya hace el off() y null internamente)
+     *  4. Actualizar notificación
+     *  5. Programar JobService
      */
     private fun observeMaintenanceEvents() {
         repository.maintenanceEvents
             .onEach { event ->
                 Log.w(TAG, "SET_MAINTENANCE_MODE recibido. Hasta: ${event.untilTimestampMs}")
 
-                // 1. Persistir estado ANTES de desconectar
+                // 1. Persistir ANTES de desconectar
                 repository.setMaintenanceMode(true, event.untilTimestampMs)
 
-                // 2. Deshabilitar reconexión automática y desconectar
+                // 2. Deshabilitar reconexión PRIMERO
                 repository.disableSocketReconnection()
+
+                // 3. Ahora sí desconectar — disconnect() interno ya hace el orden correcto
                 repository.disconnectSocket()
 
-                // 3. Notificación visible para el usuario
+                // 4. Notificación
                 notificationHelper.updateMaintenanceNotification(event.untilTimestampMs)
 
-                // 4. Programar el Job para cuando termine el mantenimiento
+                // 5. Programar Job
                 StatusCheckJobService.schedule(applicationContext, event.untilTimestampMs)
 
                 Log.w(TAG, "Socket desconectado. Job programado.")
@@ -282,36 +287,5 @@ class SocketForegroundService : Service() {
                 repository.reconnectWithNewUrl(newUrl)
             }
             .launchIn(serviceScope)
-    }
-
-    /**
-     * Envía el estado del dispositivo al servidor cada 45 segundos.
-     * Lee la batería del dispositivo en cada ciclo para tener el valor actual.
-     */
-    private fun startHeartbeat() {
-        heartbeatJob = serviceScope.launch {
-            while (true) {
-                if (repository.isSocketConnected()) {
-                    val (battery, charging) = getBatteryInfo()
-                    repository.sendHeartbeat(battery, charging)
-                    Log.d(TAG, "HEARTBEAT enviado: $battery% charging=$charging")
-                }
-                delay(AppConfig.HEARTBEAT_INTERVAL_MS)
-            }
-        }
-    }
-
-    /**
-     * Lee el nivel de batería y estado de carga del sistema.
-     * Devuelve un par (porcentaje: Int, cargando: Boolean).
-     */
-    private fun getBatteryInfo(): Pair<Int, Boolean> {
-        val intent = registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-        val level = intent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
-        val scale = intent?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
-        val status = intent?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
-        val pct = if (level >= 0 && scale > 0) (level * 100 / scale) else -1
-        val charging = status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL
-        return Pair(pct, charging)
     }
 }
