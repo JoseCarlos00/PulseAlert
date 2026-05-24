@@ -204,6 +204,7 @@ class SocketDataSource(
 
         // Paso 4: Nullear
         socket = null
+        _connectionState.value = ConnectionState.DISCONNECTED
         Log.d(TAG, "Socket desconectado y listeners removidos")
     }
 
@@ -276,6 +277,7 @@ class SocketDataSource(
     private fun registerIncomingEventListeners(socket: Socket) {
         
         // ALARM_ACTIVATE
+        socket.off(SocketEvents.Incoming.ALARM_ACTIVATE)
         socket.on(SocketEvents.Incoming.ALARM_ACTIVATE) { args ->
             try {
                 val payload = args?.firstOrNull() as? JSONObject
@@ -310,6 +312,7 @@ class SocketDataSource(
         }
 
         // MESSAGE_RECEIVE
+        socket.off(SocketEvents.Incoming.MESSAGE_RECEIVE)
         socket.on(SocketEvents.Incoming.MESSAGE_RECEIVE) { args ->
             try {
                 val payload = args?.firstOrNull() as? JSONObject ?: return@on
@@ -333,6 +336,7 @@ class SocketDataSource(
         }
 
         // GET_DEVICE_INFO
+        socket.off(SocketEvents.Incoming.GET_DEVICE_INFO)
         socket.on(SocketEvents.Incoming.GET_DEVICE_INFO) { args ->
             try {
                 val ack = args?.lastOrNull() as? Ack
@@ -349,12 +353,15 @@ class SocketDataSource(
         }
 
         // PING
+        socket.off(SocketEvents.Incoming.PING)
         socket.on(SocketEvents.Incoming.PING) { _pingEvents.tryEmit(Unit) }
 
         // CHECK_FOR_UPDATE
+        socket.off(SocketEvents.Incoming.CHECK_FOR_UPDATE)
         socket.on(SocketEvents.Incoming.CHECK_FOR_UPDATE) { _checkUpdateEvents.tryEmit(Unit) }
 
         // SET_MAINTENANCE_MODE
+        socket.off(SocketEvents.Incoming.SET_MAINTENANCE_MODE)
         socket.on(SocketEvents.Incoming.SET_MAINTENANCE_MODE) { args ->
             try {
                 val payload = args?.firstOrNull() as? JSONObject
