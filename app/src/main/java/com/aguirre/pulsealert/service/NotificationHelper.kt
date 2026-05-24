@@ -37,7 +37,6 @@ class NotificationHelper(private val context: Context) {
         const val NOTIF_ID_FOREGROUND = 1
         const val NOTIF_ID_ALARM      = 2
         const val NOTIF_ID_MESSAGE    = 3
-        const val NOTIF_ID_MAINTENANCE = 4
         const val  NOTIF_ID_UPDATE = 5
 
         // Extra para el Intent — indica qué pantalla abrir

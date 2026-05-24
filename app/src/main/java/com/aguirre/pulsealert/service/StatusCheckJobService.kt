@@ -52,7 +52,7 @@ class StatusCheckJobService : JobService() {
          */
         fun schedule(context: Context, untilMs: Long) {
             val delayMs = (untilMs - System.currentTimeMillis()).coerceAtLeast(0L)
-            val jobScheduler = context.getSystemService(Context.JOB_SCHEDULER_SERVICE) as JobScheduler
+            val jobScheduler = context.getSystemService(JOB_SCHEDULER_SERVICE) as JobScheduler
 
             val jobInfo = JobInfo.Builder(JOB_ID, ComponentName(context, StatusCheckJobService::class.java))
                 .setMinimumLatency(delayMs)
@@ -72,7 +72,7 @@ class StatusCheckJobService : JobService() {
          * Llamado cuando el servidor vuelve ACTIVE y ya no es necesario.
          */
         fun cancel(context: Context) {
-            val jobScheduler = context.getSystemService(Context.JOB_SCHEDULER_SERVICE) as JobScheduler
+            val jobScheduler = context.getSystemService(JOB_SCHEDULER_SERVICE) as JobScheduler
             jobScheduler.cancel(JOB_ID)
             Log.i(TAG, "Job cancelado")
         }

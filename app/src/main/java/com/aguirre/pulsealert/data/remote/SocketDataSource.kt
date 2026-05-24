@@ -59,7 +59,6 @@ enum class ConnectionState {
  *  - Crear y mantener la conexión con el servidor.
  *  - Registrar el dispositivo tras conectar (REGISTER_DEVICE).
  *  - Escuchar eventos entrantes y exponerlos como Flows.
- *  - Enviar el HEARTBEAT periódico (lo orquesta el ForegroundService).
  *  - Desconectarse limpiamente.
  *
  * NO reproduce audio ni lanza notificaciones — eso es responsabilidad

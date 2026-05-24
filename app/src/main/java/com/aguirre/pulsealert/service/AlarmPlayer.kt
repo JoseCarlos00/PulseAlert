@@ -142,7 +142,7 @@ class AlarmPlayer(private val context: Context) {
             val afd = context.resources.openRawResourceFd(rawRes)
             mp.setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
             afd.close()
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             Log.w(TAG, "No se encontró recurso raw, usando fallback del sistema")
             val alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
                 ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)

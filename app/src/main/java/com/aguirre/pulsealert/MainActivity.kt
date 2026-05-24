@@ -34,7 +34,7 @@ class MainActivity : ComponentActivity() {
     ) { results ->
         results.forEach { (permission, granted) ->
             val status = if (granted) "CONCEDIDO" else "DENEGADO"
-            android.util.Log.d("Permissions", "$permission → $status")
+            Log.d("Permissions", "$permission → $status")
         }
         // La app sigue funcionando aunque se denieguen.
         // Solo se perderán las notificaciones si POST_NOTIFICATIONS

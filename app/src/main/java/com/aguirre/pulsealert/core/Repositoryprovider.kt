@@ -77,7 +77,7 @@ object RepositoryProvider {
             context.packageManager
                 .getPackageInfo(context.packageName, 0)
                 .versionName ?: "1.0.0"
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             "1.0.0"
         }
 
@@ -118,7 +118,7 @@ object RepositoryProvider {
                 ip shr 16 and 0xff,
                 ip shr 24 and 0xff
             )
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             "0.0.0.0"
         }
     }

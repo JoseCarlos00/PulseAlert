@@ -145,12 +145,6 @@ class DeviceRepository(
      */
     fun disconnectSocket() = socketDataSource.disconnect()
 
-    /**
-     * Envía el HEARTBEAT periódico al servidor.
-     * Llamado desde ForegroundService cada 45 segundos.
-     */
-    fun sendHeartbeat(battery: Int, charging: Boolean) =
-        socketDataSource.sendHeartbeat(battery, charging)
 
     /**
      * Envía la respuesta PONG tras reproducir el sonido de PING.

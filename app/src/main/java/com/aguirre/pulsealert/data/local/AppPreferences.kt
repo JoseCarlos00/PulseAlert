@@ -116,12 +116,6 @@ class AppPreferences(private val context: Context) {
         }
     }
 
-    suspend fun saveApiKey(key: String) {
-        context.dataStore.edit { prefs ->
-            prefs[KEY_API_KEY] = key
-        }
-    }
-
     suspend fun saveDeviceAlias(alias: String) {
         context.dataStore.edit { prefs ->
             prefs[KEY_DEVICE_ALIAS] = alias
@@ -148,7 +142,6 @@ class AppPreferences(private val context: Context) {
             prefs[KEY_SERVER_URL]   = AppConfig.DEFAULT_SERVER_URL
             prefs[KEY_STATUS_URL] = AppConfig.DEFAULT_STATUS_URL
             prefs[KEY_UPDATE_URL] = AppConfig.DEFAULT_UPDATE_URL
-            prefs[KEY_API_KEY]      = AppConfig.DEFAULT_API_KEY
             prefs[KEY_DEVICE_ALIAS] = AppConfig.DEFAULT_DEVICE_ALIAS
             prefs[KEY_MAINTENANCE_MODE]     = false
             prefs[KEY_MAINTENANCE_UNTIL_MS] = 0L

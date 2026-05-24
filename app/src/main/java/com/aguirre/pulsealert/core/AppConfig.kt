@@ -25,10 +25,4 @@ object AppConfig {
 
     // Alias por defecto del dispositivo (se muestra en notificaciones del servidor)
     const val DEFAULT_DEVICE_ALIAS = "Dispositivo Android"
-
-    // Intervalo del Heartbeat en milisegundos (45 segundos según la documentación)
-    const val HEARTBEAT_INTERVAL_MS = 45_000L
-
-    // Timeout de respuesta para eventos como PING o GET_DEVICE_INFO
-    const val SOCKET_ACK_TIMEOUT_MS = 10_000L
 }
