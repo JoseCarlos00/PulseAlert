@@ -31,6 +31,6 @@ object SocketEvents {
      */
     object Outgoing {
         const val REGISTER_DEVICE = "REGISTER_DEVICE"
-        const val PING            = "PING"
+        const val PONG            = "PONG"
     }
 }

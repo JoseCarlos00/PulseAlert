@@ -404,7 +404,7 @@ class SocketDataSource(
      * El ForegroundService llama esto después de reproducir el sonido (3s delay).
      */
     fun sendPong() {
-        socket?.emit(SocketEvents.Outgoing.PING, JSONObject().put("status", "PONG"))
+        socket?.emit(SocketEvents.Outgoing.PONG, JSONObject().put("status", "PONG"))
         Log.d(TAG, "sendPong() llamado")
     }
 
