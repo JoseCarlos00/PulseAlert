@@ -1,5 +1,10 @@
 package com.aguirre.pulsealert.ui.home
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aguirre.pulsealert.data.remote.ConnectionState
+import com.aguirre.pulsealert.ui.components.MaintenanceCard
 
 @Composable
 fun HomeScreen(
@@ -66,6 +72,15 @@ fun HomeScreen(
 
             // ── Tarjeta de conexión ───────────────────────────────────────
             ConnectionCard(state = uiState.connectionState)
+
+            // ── Banner de mantenimiento — solo visible cuando aplica ──────
+            AnimatedVisibility(
+                visible = uiState.isMaintenanceMode,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                MaintenanceCard(untilMs = uiState.maintenanceUntilMs)
+            }
         }
 
         // ── Parte central (scrollable) ─────────────────

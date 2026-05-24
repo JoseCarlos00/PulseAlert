@@ -20,7 +20,10 @@ data class HomeUiState(
     val deviceAlias: String = "—",
     val androidId: String = "—",
     val appVersion: String = "—",
-    val isLoading: Boolean = true
+    val isLoading: Boolean = true,
+    // Mantenimiento
+    val isMaintenanceMode: Boolean = false,
+    val maintenanceUntilMs: Long = 0L
 )
 
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
@@ -34,6 +37,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         loadStaticInfo()
         observeConnectionState()
         observeDeviceAlias()
+        observeMaintenanceState()
     }
 
     private fun loadStaticInfo() {
@@ -49,7 +53,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             context.packageManager
                 .getPackageInfo(context.packageName, 0)
                 .versionName ?: "—"
-        } catch (e: Exception) { "—" }
+        } catch (_: Exception) { "—" }
 
         val ipAddress = RepositoryProvider.getLocalIpAddress(context)
 
@@ -75,6 +79,19 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             repository.deviceAlias.collect { alias ->
                 _uiState.update { it.copy(deviceAlias = alias) }
+            }
+        }
+    }
+
+    private fun observeMaintenanceState() {
+        viewModelScope.launch {
+            repository.isMaintenanceMode.collect { active ->
+                _uiState.update { it.copy(isMaintenanceMode = active) }
+            }
+        }
+        viewModelScope.launch {
+            repository.maintenanceUntilMs.collect { untilMs ->
+                _uiState.update { it.copy(maintenanceUntilMs = untilMs) }
             }
         }
     }
