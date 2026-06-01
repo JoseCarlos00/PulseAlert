@@ -4,12 +4,15 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.aguirre.pulsealert.core.RepositoryProvider
+import com.aguirre.pulsealert.data.local.AppPreferences
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
 /**
  * Estado de la pantalla de configuración.
@@ -24,7 +27,11 @@ data class SettingsUiState(
     val updateUrl: String = "",
     val deviceAlias: String = "",
     val isSaved: Boolean = false,
-    val isLoading: Boolean = true
+    val isLoading: Boolean = true,
+
+    val isAccessGranted: Boolean = false,
+    val pinInput: String = "",
+    val isPinError: Boolean = false
 )
 
 /**
@@ -92,6 +99,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         _uiState.update { it.copy(deviceAlias = value, isSaved = false) }
     }
 
+    fun onPinChange(newValue: String) {
+        _uiState.update { it.copy(pinInput = newValue, isPinError = false) }
+    }
+
     // ── Acciones ─────────────────────────────────────────────────────
 
     /**
@@ -118,6 +129,16 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             repository.resetPrefsToDefaults()
             _uiState.update { it.copy(isSaved = false) }
+        }
+    }
+
+    fun validatePin() {
+        val correctPin = runBlocking{ repository.unlockPIN.first() }
+
+        if (_uiState.value.pinInput == correctPin) {
+            _uiState.update { it.copy(isAccessGranted = true) }
+        } else {
+            _uiState.update { it.copy(isPinError = true, pinInput = "") }
         }
     }
 }

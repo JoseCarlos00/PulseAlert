@@ -11,11 +11,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -24,7 +29,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -44,6 +51,17 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    // Si no tiene acceso, mostramos la pantalla de bloqueo
+    if (!uiState.isAccessGranted) {
+        AuthGate(
+            pinValue = uiState.pinInput,
+            isError = uiState.isPinError,
+            onPinChange = viewModel::onPinChange,
+            onConfirm = viewModel::validatePin
+        )
+        return
+    }
 
     if (uiState.isLoading) {
         Column(
@@ -175,4 +193,50 @@ private fun SectionLabel(text: String) {
         style = MaterialTheme.typography.labelLarge,
         color = MaterialTheme.colorScheme.primary
     )
+}
+
+@Composable
+private fun AuthGate(
+    pinValue: String,
+    isError: Boolean,
+    onPinChange: (String) -> Unit,
+    onConfirm: () -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            Icons.Default.Lock,
+            contentDescription = null,
+            modifier = Modifier.size(64.dp)
+        )
+        Text("Acceso Restringido", style = MaterialTheme.typography.headlineMedium)
+        Spacer(Modifier.height(16.dp))
+
+        OutlinedTextField(
+            value = pinValue,
+            onValueChange = onPinChange,
+            label = { Text("Introduce el PIN") },
+            visualTransformation = PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Number,
+                imeAction = ImeAction.Done // Define el botón de "Enter" como "Listo"
+            ),
+            keyboardActions = KeyboardActions(
+                onDone = { onConfirm() } // Ejecuta la validación al pulsar el botón del teclado
+            ),
+            isError = isError,
+            supportingText = { if (isError) Text("PIN Incorrecto") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Button(
+            onClick = onConfirm,
+            modifier = Modifier.fillMaxWidth().padding(top = 16.dp)
+        ) {
+            Text("Desbloquear")
+        }
+    }
 }
