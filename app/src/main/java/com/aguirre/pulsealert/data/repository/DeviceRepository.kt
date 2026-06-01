@@ -51,6 +51,8 @@ class DeviceRepository(
     val isMaintenanceMode: Flow<Boolean> = prefs.isMaintenanceMode
     val maintenanceUntilMs: Flow<Long>   = prefs.maintenanceUntilMs
 
+    val unlockPIN: Flow<String> = prefs.unlockPIN
+
     // ── Mensajes (Room) ───────────────────────────────────────────────
 
     /**

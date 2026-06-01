@@ -25,4 +25,6 @@ object AppConfig {
 
     // Alias por defecto del dispositivo (se muestra en notificaciones del servidor)
     const val DEFAULT_DEVICE_ALIAS = "Dispositivo Android"
+
+    const val DEFAULT_UNLOCK_PIN = "4507"
 }

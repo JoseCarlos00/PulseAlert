@@ -48,6 +48,7 @@ class AppPreferences(private val context: Context) {
         private val KEY_DEVICE_ALIAS = stringPreferencesKey("device_alias")
         private val KEY_MAINTENANCE_MODE      = booleanPreferencesKey("maintenance_mode")
         private val KEY_MAINTENANCE_UNTIL_MS  = longPreferencesKey("maintenance_until_ms")
+        private val KEY_UNLOCK_PIN = stringPreferencesKey("unlock_pin")
     }
 
     // ── Flows de lectura ──────────────────────────────────────────────
@@ -90,6 +91,10 @@ class AppPreferences(private val context: Context) {
 
     val maintenanceUntilMs: Flow<Long> = context.dataStore.data.map { prefs ->
         prefs[KEY_MAINTENANCE_UNTIL_MS] ?: 0L
+    }
+
+    val unlockPIN: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[KEY_UNLOCK_PIN] ?: AppConfig.DEFAULT_UNLOCK_PIN
     }
 
     // ── Funciones de escritura ────────────────────────────────────────
@@ -145,6 +150,7 @@ class AppPreferences(private val context: Context) {
             prefs[KEY_DEVICE_ALIAS] = AppConfig.DEFAULT_DEVICE_ALIAS
             prefs[KEY_MAINTENANCE_MODE]     = false
             prefs[KEY_MAINTENANCE_UNTIL_MS] = 0L
+            prefs[KEY_UNLOCK_PIN] = AppConfig.DEFAULT_UNLOCK_PIN
         }
     }
 }
