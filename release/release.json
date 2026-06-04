@@ -1,0 +1,11 @@
+{
+  "version": 3,
+  "applicationId": "com.aguirre.pulsealert",
+  "elementType": "File",
+  "minSdkVersionForHexing": 27,
+
+  "versionCode": 100,
+  "versionName": "1.0.0",
+  "downloadUrl": "http://192.168.15.189/app/AlarmScanner.apk",
+  "changelog": ""
+}
