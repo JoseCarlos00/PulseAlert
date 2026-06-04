@@ -230,16 +230,16 @@ class SocketForegroundService : Service() {
 
     /**
      * Escucha CHECK_FOR_UPDATE.
-     * En una app interna sin Play Store, esto puede usarse para
-     * notificar al usuario que hay una nueva APK disponible en el servidor.
-     * Por ahora loga el evento — puedes expandirlo según tus necesidades.
+     * Responde al servidor con el resultado de la verificación, incluso si falla.
      */
     private fun observeCheckUpdateEvents() {
         repository.checkUpdateEvents
-            .onEach {
+            .onEach { ack ->
                 Log.d(TAG, "CHECK_FOR_UPDATE recibido")
                 serviceScope.launch {
-                    updateChecker.checkAndNotify()
+                    val result = updateChecker.checkAndNotify()
+                    ack?.call(result)
+                    Log.d(TAG, "Respuesta a CHECK_FOR_UPDATE enviada: $result")
                 }
             }
             .launchIn(serviceScope)

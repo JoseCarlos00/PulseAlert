@@ -100,8 +100,8 @@ class SocketDataSource(
     private val _pingEvents = MutableSharedFlow<Unit>(replay = 0, extraBufferCapacity = 64)
     val pingEvents: Flow<Unit> = _pingEvents.asSharedFlow()
 
-    private val _checkUpdateEvents = MutableSharedFlow<Unit>(replay = 0, extraBufferCapacity = 64)
-    val checkUpdateEvents: Flow<Unit> = _checkUpdateEvents.asSharedFlow()
+    private val _checkUpdateEvents = MutableSharedFlow<Ack?>(replay = 0, extraBufferCapacity = 64)
+    val checkUpdateEvents: Flow<Ack?> = _checkUpdateEvents.asSharedFlow()
 
     private val _maintenanceEvents = MutableSharedFlow<MaintenanceEvent>(replay = 0, extraBufferCapacity = 64)
     val maintenanceEvents: Flow<MaintenanceEvent> = _maintenanceEvents.asSharedFlow()
@@ -358,7 +358,10 @@ class SocketDataSource(
 
         // CHECK_FOR_UPDATE
         socket.off(SocketEvents.Incoming.CHECK_FOR_UPDATE)
-        socket.on(SocketEvents.Incoming.CHECK_FOR_UPDATE) { _checkUpdateEvents.tryEmit(Unit) }
+        socket.on(SocketEvents.Incoming.CHECK_FOR_UPDATE) { args ->
+            val ack = args?.lastOrNull() as? Ack
+            _checkUpdateEvents.tryEmit(ack)
+        }
 
         // SET_MAINTENANCE_MODE
         socket.off(SocketEvents.Incoming.SET_MAINTENANCE_MODE)

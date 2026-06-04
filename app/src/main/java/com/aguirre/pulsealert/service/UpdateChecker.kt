@@ -45,8 +45,10 @@ class UpdateChecker(private val context: Context) {
      * La descarga ocurre cuando el usuario toca la notificación.
      *
      * suspend → debe llamarse desde una coroutine (serviceScope).
+     * @return JSONObject con el resultado para responder al servidor.
      */
-    suspend fun checkAndNotify() = withContext(Dispatchers.IO) {
+    suspend fun checkAndNotify(): JSONObject = withContext(Dispatchers.IO) {
+        val result = JSONObject()
         try {
             val updateUrl = RepositoryProvider.get(context).updateUrl.first()
             Log.d(TAG, "Verificando actualizaciones en: $updateUrl")
@@ -57,7 +59,8 @@ class UpdateChecker(private val context: Context) {
                 readTimeout    = 10_000
             }
 
-            if (connection.responseCode == HttpURLConnection.HTTP_OK) {
+            val responseCode = connection.responseCode
+            if (responseCode == HttpURLConnection.HTTP_OK) {
                 val json             = JSONObject(connection.inputStream.bufferedReader().readText())
                 val latestVersionCode = json.getLong("versionCode")
                 val downloadUrl      = json.getString("downloadUrl")
@@ -65,21 +68,33 @@ class UpdateChecker(private val context: Context) {
 
                 Log.d(TAG, "Versión actual: $currentVersion | Última: $latestVersionCode")
 
+                result.put("status", "OK")
+                result.put("latestVersion", latestVersionCode)
+                result.put("currentVersion", currentVersion)
+
                 if (latestVersionCode > currentVersion) {
                     Log.i(TAG, "Nueva versión disponible. Mostrando notificación.")
                     showUpdateNotification(downloadUrl)
+                    result.put("updateAvailable", true)
                 } else {
                     Log.d(TAG, "La app está actualizada.")
+                    result.put("updateAvailable", false)
                 }
             } else {
-                Log.w(TAG, "HTTP ${connection.responseCode} al verificar actualizaciones")
+                Log.w(TAG, "HTTP $responseCode al verificar actualizaciones")
+                result.put("status", "ERROR")
+                result.put("httpCode", responseCode)
+                result.put("reason", "HTTP $responseCode")
             }
 
             connection.disconnect()
 
         } catch (e: Exception) {
             Log.e(TAG, "Error al verificar actualización: ${e.message}")
+            result.put("status", "ERROR")
+            result.put("reason", e.message ?: "Unknown error")
         }
+        return@withContext result
     }
 
     /**
