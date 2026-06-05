@@ -13,10 +13,10 @@ object AppConfig {
 
     // URL del servidor Socket.IO
     // Cambiar este valor antes de compilar para producción.
-    const val DEFAULT_SERVER_URL = "http://192.168.15.189:9001"
+    const val DEFAULT_SERVER_URL = "http://192.168.15.241:9001"
 
     // URL del endpoint /status (puede ser un servicio independiente en la nube
-    const val DEFAULT_STATUS_URL = "http://192.168.15.189:9001/status"
+    const val DEFAULT_STATUS_URL = "http://192.168.15.241:9001/status"
 
     const val DEFAULT_UPDATE_URL = "https://raw.githubusercontent.com/JoseCarlos00/PulseAlert/main/release/release.json"
 
