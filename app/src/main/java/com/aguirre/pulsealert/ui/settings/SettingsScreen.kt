@@ -1,8 +1,5 @@
 package com.aguirre.pulsealert.ui.settings
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,9 +21,15 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
@@ -51,6 +54,18 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // Lanza el snackbar cada vez que isSaved se vuelve true
+    LaunchedEffect(uiState.isSaved) {
+        if (uiState.isSaved) {
+            snackbarHostState.showSnackbar(
+                message = "Configuración guardada",
+                duration = SnackbarDuration.Short
+            )
+            viewModel.onSavedConsumed() // resetea el flag
+        }
+    }
 
     // Si no tiene acceso, mostramos la pantalla de bloqueo
     if (!uiState.isAccessGranted) {
@@ -74,110 +89,99 @@ fun SettingsScreen(
         return
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-
-        Text(
-            text = "Configuración",
-            style = MaterialTheme.typography.headlineSmall
-        )
-
-        Spacer(modifier = Modifier.height(4.dp))
-
-        // ── Sección servidor ─────────────────────────────────────────
-
-        SectionLabel("Servidor")
-
-        OutlinedTextField(
-            value = uiState.serverUrl,
-            onValueChange = viewModel::onServerUrlChange,
-            label = { Text("URL del servidor") },
-            placeholder = { Text("http://192.168.1.100:3000") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        OutlinedTextField(
-            value = uiState.statusUrl,
-            onValueChange = viewModel::onStatusUrlChange,
-            label = { Text("URL de estado") },
-            placeholder = { Text("https://mi-servicio.com/status") },
-            supportingText = { Text("Endpoint independiente para verificar mantenimiento.") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        OutlinedTextField(
-            value = uiState.updateUrl,
-            onValueChange = viewModel::onUpdateUrlChange,
-            label = { Text("URL de actualizaciones") },
-            placeholder = { Text("https://raw.githubusercontent.com/...") },
-            supportingText = { Text("JSON con la versión más reciente de la app.") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(4.dp))
-
-        // ── Sección dispositivo ──────────────────────────────────────
-
-        SectionLabel("Dispositivo")
-
-        OutlinedTextField(
-            value = uiState.deviceAlias,
-            onValueChange = viewModel::onDeviceAliasChange,
-            label = { Text("Alias del dispositivo") },
-            placeholder = { Text("Ej. Bodega 3 - Entrada") },
-            supportingText = { Text("Nombre que verá el operador en el panel web.") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // ── Botones ──────────────────────────────────────────────────
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+    Scaffold(
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            OutlinedButton(
-                onClick = viewModel::resetSettings,
-                modifier = Modifier.weight(1f)
-            ) {
-                Text("Restablecer")
-            }
 
-            Button(
-                onClick = viewModel::saveSettings,
-                modifier = Modifier.weight(1f)
-            ) {
-                Text("Guardar")
-            }
-        }
-
-        // ── Confirmación ────────────────────────────────—────────────
-        // AnimatedVisibility muestra/oculta el texto con fade suave.
-
-        AnimatedVisibility(
-            visible = uiState.isSaved,
-            enter = fadeIn(),
-            exit = fadeOut()
-        ) {
             Text(
-                text = "✓ Configuración guardada",
-                color = MaterialTheme.colorScheme.primary,
-                style = MaterialTheme.typography.bodyMedium,
+                text = "Configuración",
+                style = MaterialTheme.typography.headlineSmall
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // ── Sección servidor ─────────────────────────────────────────
+
+            SectionLabel("Servidor")
+
+            OutlinedTextField(
+                value = uiState.serverUrl,
+                onValueChange = viewModel::onServerUrlChange,
+                label = { Text("URL del servidor") },
+                placeholder = { Text("http://192.168.1.100:3000") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
+
+            OutlinedTextField(
+                value = uiState.statusUrl,
+                onValueChange = viewModel::onStatusUrlChange,
+                label = { Text("URL de estado") },
+                placeholder = { Text("https://mi-servicio.com/status") },
+                supportingText = { Text("Endpoint independiente para verificar mantenimiento.") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            OutlinedTextField(
+                value = uiState.updateUrl,
+                onValueChange = viewModel::onUpdateUrlChange,
+                label = { Text("URL de actualizaciones") },
+                placeholder = { Text("https://raw.githubusercontent.com/...") },
+                supportingText = { Text("JSON con la versión más reciente de la app.") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // ── Sección dispositivo ──────────────────────────────────────
+
+            SectionLabel("Dispositivo")
+
+            OutlinedTextField(
+                value = uiState.deviceAlias,
+                onValueChange = viewModel::onDeviceAliasChange,
+                label = { Text("Alias del dispositivo") },
+                placeholder = { Text("Ej. Bodega 3 - Entrada") },
+                supportingText = { Text("Nombre que verá el operador en el panel web.") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // ── Botones ──────────────────────────────────────────────────
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedButton(
+                    onClick = viewModel::resetSettings,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Restablecer")
+                }
+
+                Button(
+                    onClick = viewModel::saveSettings,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Guardar")
+                }
+            }
         }
     }
 }

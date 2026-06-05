@@ -4,7 +4,6 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.aguirre.pulsealert.core.RepositoryProvider
-import com.aguirre.pulsealert.data.local.AppPreferences
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -74,7 +73,13 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                     isLoading   = false
                 )
             }.collect { state ->
-                _uiState.value = state
+                _uiState.update {
+                    state.copy(
+                        isAccessGranted = it.isAccessGranted,
+                        pinInput        = it.pinInput,
+                        isPinError      = it.isPinError
+                    )
+                }
             }
         }
     }
@@ -140,5 +145,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         } else {
             _uiState.update { it.copy(isPinError = true, pinInput = "") }
         }
+    }
+
+    fun onSavedConsumed() {
+        _uiState.update { it.copy(isSaved = false) }
     }
 }
