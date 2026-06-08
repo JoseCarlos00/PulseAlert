@@ -1,10 +1,14 @@
 package com.aguirre.pulsealert
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
+import android.provider.Settings
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -90,9 +94,8 @@ class MainActivity : ComponentActivity() {
      */
     private fun handleIntent(intent: Intent?) {
         Log.d("MainActivity", "handleIntent: action=${intent?.action}")
-        
+
         when (intent?.action) {
-            // SOLUCIÓN: Usar ACTION_NAV_MESSAGES para que coincida con el action del Intent
             NotificationHelper.ACTION_NAV_MESSAGES -> {
                 Log.d("MainActivity", "Navegando a Mensajes vía Deep Link")
                 messagesViewModel.triggerNavigation(Screen.Messages.route)
@@ -111,19 +114,8 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    // ── Permisos ──────────────────────────────────────────────────────
-
-    /**
-     * Construye la lista de permisos que faltan y los solicita juntos.
-     *
-     * POST_NOTIFICATIONS → requerido en Android 13+ para notificaciones.
-     *   Sin este permiso las alertas de alarma y mensajes no aparecen.
-     *
-     * Los permisos "normales" (INTERNET, WAKE_LOCK, FOREGROUND_SERVICE,
-     * ACCESS_WIFI_STATE) los concede Android automáticamente al instalar,
-     * no necesitan diálogo.
-     */
     private fun requestRequiredPermissions() {
+        // Permisos de sistema (diálogo estándar)
         val toRequest = buildList {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 if (!isGranted(Manifest.permission.POST_NOTIFICATIONS)) {
@@ -133,6 +125,28 @@ class MainActivity : ComponentActivity() {
         }
         if (toRequest.isNotEmpty()) {
             permissionLauncher.launch(toRequest.toTypedArray())
+        }
+
+        // REQUEST_INSTALL_PACKAGES: Requiere abrir ajustes
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (!packageManager.canRequestPackageInstalls()) {
+                val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+                    data = Uri.parse("package:$packageName")
+                }
+                startActivity(intent)
+            }
+        }
+
+        // Recomendado para apps internas: Ignorar optimización de batería
+        // Esto asegura que el Socket.IO no se desconecte en segundo plano.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+            if (!pm.isIgnoringBatteryOptimizations(packageName)) {
+                val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                    data = Uri.parse("package:$packageName")
+                }
+                startActivity(intent)
+            }
         }
     }
 
