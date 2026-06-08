@@ -59,12 +59,15 @@ class NotificationHelper(private val context: Context) {
      * Es silenciosa y de baja prioridad para no molestar al usuario.
      * Se muestra siempre que el servicio esté activo.
      */
-    fun buildForegroundNotification(isConnected: Boolean): Notification {
+    fun buildForegroundNotification(isConnected: Boolean, deviceAlias: String): Notification {
         val statusText = if (isConnected) "Conectado al servidor" else "Reconectando..."
+        val deviceAlias = deviceAlias.ifBlank { "" }
+
 
         return NotificationCompat.Builder(context, CHANNEL_FOREGROUND)
             .setContentTitle("PulseAlert activo")
             .setContentText(statusText)
+            .setSubText(deviceAlias)
             .setSmallIcon(R.drawable.ic_notification)
             .setOngoing(true)           // no se puede descartar deslizando
             .setSilent(true)            // sin sonido ni vibración
@@ -76,10 +79,10 @@ class NotificationHelper(private val context: Context) {
      * Actualiza el texto de la notificación persistente sin recrearla.
      * Llamado desde ForegroundService cuando cambia el estado de conexión.
      */
-    fun updateForegroundNotification(isConnected: Boolean) {
+    fun updateForegroundNotification(isConnected: Boolean, deviceAlias: String) {
         notificationManager.notify(
             NOTIF_ID_FOREGROUND,
-            buildForegroundNotification(isConnected)
+            buildForegroundNotification(isConnected, deviceAlias)
         )
     }
 
@@ -116,7 +119,7 @@ class NotificationHelper(private val context: Context) {
      * Llamado desde StatusCheckJobService cuando el servidor vuelve a ACTIVE.
      */
     fun clearMaintenanceNotification() {
-        updateForegroundNotification(isConnected = false)
+        updateForegroundNotification(isConnected = false, deviceAlias = "")
     }
 
     // ── Notificación de alarma ────────────────────────────────────────

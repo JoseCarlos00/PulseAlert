@@ -39,6 +39,8 @@ class SocketForegroundService : Service() {
     // URL activa en el socket — usada para detectar cambios reales
     private var activeSocketUrl: String = ""
 
+    private var currentDeviceAlias: String = ""
+
     // ── Ciclo de vida ─────────────────────────────────────────────────
 
     override fun onCreate() {
@@ -78,7 +80,13 @@ class SocketForegroundService : Service() {
         repository.setOnDeviceAliasReceivedListener { alias ->
             serviceScope.launch {
                 Log.d(TAG, "Alias recibido del servidor: $alias")
+                currentDeviceAlias = alias
                 repository.saveDeviceAlias(alias)
+
+                notificationHelper.updateForegroundNotification(
+                    isConnected = repository.isSocketConnected(),
+                    deviceAlias = alias
+                )
             }
         }
 
@@ -93,7 +101,10 @@ class SocketForegroundService : Service() {
 
         // FIX PROBLEMA 1: usar el estado real del socket, no asumir false
         val alreadyConnected = repository.isSocketConnected()
-        val notification = notificationHelper.buildForegroundNotification(isConnected = alreadyConnected)
+        val notification = notificationHelper.buildForegroundNotification(
+            isConnected = alreadyConnected,
+            deviceAlias = currentDeviceAlias
+        )
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(
@@ -121,6 +132,7 @@ class SocketForegroundService : Service() {
                     repository.setMaintenanceMode(false)
                     // Leer la URL actual y registrarla antes de conectar
                     activeSocketUrl = repository.serverUrl.first()
+                    currentDeviceAlias = repository.deviceAlias.first()
                     repository.connectSocket()
                 }
             }
@@ -165,7 +177,7 @@ class SocketForegroundService : Service() {
                 // FIX PROBLEMA 1: comparar con el enum, no con .name string
                 val isConnected = state == ConnectionState.CONNECTED
                 Log.d(TAG, "ConnectionState cambió: $state → isConnected=$isConnected")
-                notificationHelper.updateForegroundNotification(isConnected)
+                notificationHelper.updateForegroundNotification(isConnected, currentDeviceAlias)
             }
             .launchIn(serviceScope)
     }
