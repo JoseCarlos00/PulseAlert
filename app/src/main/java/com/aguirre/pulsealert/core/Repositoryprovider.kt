@@ -2,7 +2,9 @@ package com.aguirre.pulsealert.core
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.os.Build
 import android.provider.Settings
+import androidx.annotation.RequiresApi
 import com.aguirre.pulsealert.data.local.AppPreferences
 import com.aguirre.pulsealert.data.remote.SocketDataSource
 import com.aguirre.pulsealert.data.repository.DeviceRepository
@@ -41,12 +43,14 @@ object RepositoryProvider {
      *
      * @param context Cualquier Context — se usa applicationContext internamente.
      */
+    @RequiresApi(Build.VERSION_CODES.P)
     fun get(context: Context): DeviceRepository {
         return INSTANCE ?: synchronized(this) {
             INSTANCE ?: build(context.applicationContext).also { INSTANCE = it }
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.P)
     private fun build(context: Context): DeviceRepository {
         val prefs = AppPreferences(context)
 
@@ -76,9 +80,9 @@ object RepositoryProvider {
         val appVersion = try {
             context.packageManager
                 .getPackageInfo(context.packageName, 0)
-                .versionName ?: "1.0.0"
+                .longVersionCode
         } catch (_: Exception) {
-            "1.0.0"
+            null
         }
 
         val socketDataSource = SocketDataSource(

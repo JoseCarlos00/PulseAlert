@@ -79,7 +79,7 @@ class SocketDataSource(
     private val apiKey: String,
     private val androidId: String,
     private val deviceAlias: String,
-    private val appVersion: String,
+    private val appVersion: Long?,
     private val ipAddress: String
 ) {
     private var socket: Socket? = null
