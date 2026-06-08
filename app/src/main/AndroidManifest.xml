@@ -22,11 +22,14 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
+    <!-- Recomendado para apps internas con servicios persistentes -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
     <!-- SOLUCIÓN AL WARNING: Visibilidad para el instalador de paquetes -->
     <queries>
         <intent>
             <action android:name="android.intent.action.VIEW" />
-            <data android:mimeType="application/vnd.android.package-archive" />
+            <data android:mimeType="application.vnd.android.package-archive" />
         </intent>
     </queries>
 
