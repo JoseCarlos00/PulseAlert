@@ -1,7 +1,5 @@
 package com.aguirre.pulsealert.ui.home
 
-import android.os.Build
-import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -44,7 +42,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aguirre.pulsealert.data.remote.ConnectionState
 import com.aguirre.pulsealert.ui.components.MaintenanceCard
 
-@RequiresApi(Build.VERSION_CODES.P)
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel = viewModel()

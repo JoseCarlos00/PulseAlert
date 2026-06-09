@@ -1,7 +1,5 @@
 package com.aguirre.pulsealert.core
 
-import android.os.Build
-import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Badge
@@ -32,7 +30,6 @@ import com.aguirre.pulsealert.ui.settings.SettingsScreen
 /**
  * Composable raíz de la navegación.
  */
-@RequiresApi(Build.VERSION_CODES.P)
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()

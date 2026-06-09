@@ -2,9 +2,7 @@ package com.aguirre.pulsealert.ui.home
 
 import android.annotation.SuppressLint
 import android.app.Application
-import android.os.Build
 import android.provider.Settings
-import androidx.annotation.RequiresApi
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.aguirre.pulsealert.core.RepositoryProvider
@@ -28,10 +26,8 @@ data class HomeUiState(
     val maintenanceUntilMs: Long = 0L
 )
 
-@RequiresApi(Build.VERSION_CODES.P)
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
-    @RequiresApi(Build.VERSION_CODES.P)
     private val repository = RepositoryProvider.get(application)
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -79,7 +75,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.P)
     private fun observeDeviceAlias() {
         viewModelScope.launch {
             repository.deviceAlias.collect { alias ->
@@ -88,7 +83,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.P)
     private fun observeMaintenanceState() {
         viewModelScope.launch {
             repository.isMaintenanceMode.collect { active ->

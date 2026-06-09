@@ -1,8 +1,6 @@
 package com.aguirre.pulsealert.ui.messages
 
 import android.app.Application
-import android.os.Build
-import androidx.annotation.RequiresApi
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.aguirre.pulsealert.core.RepositoryProvider
@@ -17,7 +15,6 @@ import kotlinx.coroutines.launch
 
 class MessagesViewModel(application: Application) : AndroidViewModel(application) {
 
-    @RequiresApi(Build.VERSION_CODES.P)
     private val repository = RepositoryProvider.get(application)
 
     /**
@@ -29,11 +26,9 @@ class MessagesViewModel(application: Application) : AndroidViewModel(application
     private val _navigationChannel = Channel<String>(capacity = Channel.CONFLATED)
     val navigationRequest: Flow<String> = _navigationChannel.receiveAsFlow()
 
-    @RequiresApi(Build.VERSION_CODES.P)
     val newMessageIds: StateFlow<Set<Int>> = repository.newMessageIds
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
 
-    @RequiresApi(Build.VERSION_CODES.P)
     val messages: StateFlow<List<MessageEntity>> = repository.allMessages
         .stateIn(
             scope = viewModelScope,
@@ -44,7 +39,6 @@ class MessagesViewModel(application: Application) : AndroidViewModel(application
     /**
      * Cantidad de mensajes no leídos para el badge de la BottomBar.
      */
-    @RequiresApi(Build.VERSION_CODES.P)
     val unreadCount: StateFlow<Int> = repository.unreadCount
         .stateIn(
             scope = viewModelScope,
@@ -61,7 +55,6 @@ class MessagesViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.P)
     fun markAllAsRead() {
         viewModelScope.launch {
             repository.markAllMessagesAsRead()
@@ -71,19 +64,16 @@ class MessagesViewModel(application: Application) : AndroidViewModel(application
     /**
      * Elimina todos los mensajes del historial.
      */
-    @RequiresApi(Build.VERSION_CODES.P)
     fun deleteAll() {
         viewModelScope.launch {
             repository.deleteAllMessages()
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.P)
     fun setScreenActive(active: Boolean) {
         repository.setMessagesScreenActive(active)
     }
 
-    @RequiresApi(Build.VERSION_CODES.P)
     fun clearNew(messageId: Int) {
         viewModelScope.launch { repository.clearNewMessage(messageId) }
     }

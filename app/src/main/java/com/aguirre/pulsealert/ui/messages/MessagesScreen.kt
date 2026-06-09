@@ -1,7 +1,5 @@
 package com.aguirre.pulsealert.ui.messages
 
-import android.os.Build
-import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -34,7 +32,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aguirre.pulsealert.ui.components.EmptyState
 import com.aguirre.pulsealert.ui.components.MessageItem
 
-@RequiresApi(Build.VERSION_CODES.P)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MessagesScreen(

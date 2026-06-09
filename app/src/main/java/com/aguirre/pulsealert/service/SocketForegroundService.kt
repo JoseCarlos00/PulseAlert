@@ -6,7 +6,6 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
-import androidx.annotation.RequiresApi
 import com.aguirre.pulsealert.core.RepositoryProvider
 import com.aguirre.pulsealert.data.remote.ConnectionState
 import com.aguirre.pulsealert.data.repository.DeviceRepository
@@ -44,7 +43,6 @@ class SocketForegroundService : Service() {
 
     // ── Ciclo de vida ─────────────────────────────────────────────────
 
-    @RequiresApi(Build.VERSION_CODES.P)
     override fun onCreate() {
         super.onCreate()
         Log.d(TAG, "onCreate: Inicializando servicio")
@@ -247,7 +245,6 @@ class SocketForegroundService : Service() {
      * Escucha CHECK_FOR_UPDATE.
      * Responde al servidor con el resultado de la verificación, incluso si falla.
      */
-    @RequiresApi(Build.VERSION_CODES.P)
     private fun observeCheckUpdateEvents() {
         repository.checkUpdateEvents
             .onEach { ack ->

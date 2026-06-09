@@ -1,7 +1,5 @@
 package com.aguirre.pulsealert.ui.settings
 
-import android.os.Build
-import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -51,7 +49,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
  * El ViewModel se crea automáticamente con viewModel() la primera vez
  * y se reutiliza mientras la pantalla esté en el back stack.
  */
-@RequiresApi(Build.VERSION_CODES.P)
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel = viewModel()

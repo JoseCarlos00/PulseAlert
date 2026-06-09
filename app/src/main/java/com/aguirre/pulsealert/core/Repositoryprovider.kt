@@ -4,7 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Build
 import android.provider.Settings
-import androidx.annotation.RequiresApi
+import androidx.core.content.pm.PackageInfoCompat
 import com.aguirre.pulsealert.data.local.AppPreferences
 import com.aguirre.pulsealert.data.remote.SocketDataSource
 import com.aguirre.pulsealert.data.repository.DeviceRepository
@@ -43,14 +43,12 @@ object RepositoryProvider {
      *
      * @param context Cualquier Context — se usa applicationContext internamente.
      */
-    @RequiresApi(Build.VERSION_CODES.P)
     fun get(context: Context): DeviceRepository {
         return INSTANCE ?: synchronized(this) {
             INSTANCE ?: build(context.applicationContext).also { INSTANCE = it }
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.P)
     private fun build(context: Context): DeviceRepository {
         val prefs = AppPreferences(context)
 
@@ -78,9 +76,16 @@ object RepositoryProvider {
 
         // Versión de la app desde BuildConfig (generado automáticamente).
         val appVersion = try {
-            context.packageManager
-                .getPackageInfo(context.packageName, 0)
-                .longVersionCode
+            val packageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                context.packageManager.getPackageInfo(
+                    context.packageName,
+                    android.content.pm.PackageManager.PackageInfoFlags.of(0)
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                context.packageManager.getPackageInfo(context.packageName, 0)
+            }
+            PackageInfoCompat.getLongVersionCode(packageInfo)
         } catch (_: Exception) {
             null
         }
