@@ -102,18 +102,19 @@ fun MessagesScreen(
     // ── Diálogo de confirmación para limpiar ──────────────────────────
     if (showDeleteDialog) {
         AlertDialog(
-            onDismissRequest = { },
+            onDismissRequest = { showDeleteDialog = false },
             title = { Text("Limpiar historial") },
             text = { Text("Se eliminarán todos los mensajes guardados. Esta acción no se puede deshacer.") },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.deleteAll()
+                    showDeleteDialog = false
                 }) {
                     Text("Eliminar", color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { }) {
+                TextButton(onClick = { showDeleteDialog = false }) {
                     Text("Cancelar")
                 }
             }
