@@ -1,5 +1,7 @@
 package com.aguirre.pulsealert.ui.messages
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -32,6 +34,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aguirre.pulsealert.ui.components.EmptyState
 import com.aguirre.pulsealert.ui.components.MessageItem
 
+@RequiresApi(Build.VERSION_CODES.P)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MessagesScreen(
@@ -102,19 +105,18 @@ fun MessagesScreen(
     // ── Diálogo de confirmación para limpiar ──────────────────────────
     if (showDeleteDialog) {
         AlertDialog(
-            onDismissRequest = { showDeleteDialog = false },
+            onDismissRequest = { },
             title = { Text("Limpiar historial") },
             text = { Text("Se eliminarán todos los mensajes guardados. Esta acción no se puede deshacer.") },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.deleteAll()
-                    showDeleteDialog = false
                 }) {
                     Text("Eliminar", color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) {
+                TextButton(onClick = { }) {
                     Text("Cancelar")
                 }
             }

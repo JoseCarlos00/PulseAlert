@@ -7,6 +7,7 @@ import android.content.Intent
 import android.os.Build
 import android.provider.Settings
 import android.util.Log
+import androidx.annotation.RequiresApi
 import androidx.core.content.FileProvider
 import androidx.core.content.pm.PackageInfoCompat.getLongVersionCode
 import com.aguirre.pulsealert.R
@@ -47,6 +48,7 @@ class UpdateChecker(private val context: Context) {
      * suspend → debe llamarse desde una coroutine (serviceScope).
      * @return JSONObject con el resultado para responder al servidor.
      */
+    @RequiresApi(Build.VERSION_CODES.P)
     suspend fun checkAndNotify(): JSONObject = withContext(Dispatchers.IO) {
         val result = JSONObject()
         try {

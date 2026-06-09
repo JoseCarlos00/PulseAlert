@@ -1,3 +1,5 @@
+@file:Suppress("RunBlocking")
+
 package com.aguirre.pulsealert.core
 
 import android.annotation.SuppressLint

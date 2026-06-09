@@ -246,6 +246,7 @@ class SocketForegroundService : Service() {
      * Escucha CHECK_FOR_UPDATE.
      * Responde al servidor con el resultado de la verificación, incluso si falla.
      */
+    @RequiresApi(Build.VERSION_CODES.P)
     private fun observeCheckUpdateEvents() {
         repository.checkUpdateEvents
             .onEach { ack ->

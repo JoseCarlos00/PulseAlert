@@ -1,10 +1,9 @@
 package com.aguirre.pulsealert
 
 import android.Manifest
-import android.content.Context
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
@@ -23,6 +22,7 @@ import com.aguirre.pulsealert.service.SocketForegroundService
 import com.aguirre.pulsealert.service.UpdateChecker
 import com.aguirre.pulsealert.ui.messages.MessagesViewModel
 import com.aguirre.pulsealert.ui.theme.PulseAlertTheme
+import androidx.core.net.toUri
 
 class MainActivity : ComponentActivity() {
 
@@ -114,6 +114,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    @SuppressLint("BatteryLife")
     private fun requestRequiredPermissions() {
         // Permisos de sistema (diálogo estándar)
         val toRequest = buildList {
@@ -128,28 +129,25 @@ class MainActivity : ComponentActivity() {
         }
 
         // REQUEST_INSTALL_PACKAGES: Requiere abrir ajustes
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            if (!packageManager.canRequestPackageInstalls()) {
-                val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
-                    data = Uri.parse("package:$packageName")
-                }
-                startActivity(intent)
+        if (!packageManager.canRequestPackageInstalls()) {
+            val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+                data = "package:$packageName".toUri()
             }
+            startActivity(intent)
         }
 
         // Recomendado para apps internas: Ignorar optimización de batería
         // Esto asegura que el Socket.IO no se desconecte en segundo plano.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
-            if (!pm.isIgnoringBatteryOptimizations(packageName)) {
-                val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                    data = Uri.parse("package:$packageName")
-                }
-                startActivity(intent)
+        val pm = getSystemService(POWER_SERVICE) as PowerManager
+        if (!pm.isIgnoringBatteryOptimizations(packageName)) {
+            val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                data = "package:$packageName".toUri()
             }
+            startActivity(intent)
         }
     }
 
+    @Suppress("SameParameterValue")
     private fun isGranted(permission: String): Boolean =
         ContextCompat.checkSelfPermission(this, permission) ==
                 PackageManager.PERMISSION_GRANTED

@@ -7,7 +7,9 @@ import android.app.job.JobService
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.util.Log
+import androidx.annotation.RequiresApi
 import com.aguirre.pulsealert.core.RepositoryProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -67,20 +69,12 @@ class StatusCheckJobService : JobService() {
             }
         }
 
-        /**
-         * Cancela el Job si está pendiente.
-         * Llamado cuando el servidor vuelve ACTIVE y ya no es necesario.
-         */
-        fun cancel(context: Context) {
-            val jobScheduler = context.getSystemService(JOB_SCHEDULER_SERVICE) as JobScheduler
-            jobScheduler.cancel(JOB_ID)
-            Log.i(TAG, "Job cancelado")
-        }
     }
 
     private val jobScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var failCount = 0
 
+    @RequiresApi(Build.VERSION_CODES.P)
     override fun onStartJob(params: JobParameters?): Boolean {
         Log.i(TAG, "Iniciando verificación de estado del servidor")
 
@@ -103,6 +97,7 @@ class StatusCheckJobService : JobService() {
 
     // ── Lógica principal ──────────────────────────────────────────────
 
+    @RequiresApi(Build.VERSION_CODES.P)
     private suspend fun performStatusCheck(
         params: JobParameters?,
         statusUrl: String,
@@ -161,6 +156,7 @@ class StatusCheckJobService : JobService() {
     /**
      * El servidor está activo — reconectar socket y limpiar estado.
      */
+    @RequiresApi(Build.VERSION_CODES.P)
     private fun handleActive(params: JobParameters?, notifHelper: NotificationHelper) {
         Log.i(TAG, "Servidor ACTIVE. Reconectando...")
 
@@ -185,6 +181,7 @@ class StatusCheckJobService : JobService() {
      * El servidor sigue en mantenimiento con un nuevo timestamp.
      * Actualiza la notificación y reprograma el Job.
      */
+    @RequiresApi(Build.VERSION_CODES.P)
     private fun handleMaintenance(params: JobParameters?, untilMs: Long, notifHelper: NotificationHelper) {
         Log.i(TAG, "Servidor en MAINTENANCE hasta: $untilMs")
 
@@ -202,6 +199,7 @@ class StatusCheckJobService : JobService() {
      * Error de red o estado desconocido — backoff exponencial.
      * Si se supera MAX_FAIL_ATTEMPTS, se deja de intentar.
      */
+    @RequiresApi(Build.VERSION_CODES.P)
     private fun handleFailure(params: JobParameters?, notifHelper: NotificationHelper) {
         failCount++
         Log.w(TAG, "Fallo #$failCount")

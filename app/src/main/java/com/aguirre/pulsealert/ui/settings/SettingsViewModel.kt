@@ -1,6 +1,8 @@
 package com.aguirre.pulsealert.ui.settings
 
 import android.app.Application
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.aguirre.pulsealert.core.RepositoryProvider
@@ -42,8 +44,10 @@ data class SettingsUiState(
  *  3. El usuario pulsa Guardar → saveSettings() escribe en DataStore
  *  4. El usuario pulsa Restablecer → resetSettings() borra y recarga
  */
+@RequiresApi(Build.VERSION_CODES.P)
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
 
+    @RequiresApi(Build.VERSION_CODES.P)
     private val repository = RepositoryProvider.get(application)
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -57,6 +61,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
      * Carga los tres valores desde DataStore en paralelo usando combine.
      * combine espera a tener un valor de cada Flow antes de emitir.
      */
+    @RequiresApi(Build.VERSION_CODES.P)
     private fun loadSettings() {
         viewModelScope.launch {
             combine(
@@ -114,6 +119,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
      * Guarda los tres valores en DataStore.
      * Tras guardar, activa isSaved para que la UI muestre confirmación.
      */
+    @RequiresApi(Build.VERSION_CODES.P)
     fun saveSettings() {
         viewModelScope.launch {
             val state = _uiState.value
@@ -130,6 +136,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
      * DataStore emitirá los nuevos valores y loadSettings() actualizará
      * el estado automáticamente gracias al Flow activo.
      */
+    @RequiresApi(Build.VERSION_CODES.P)
     fun resetSettings() {
         viewModelScope.launch {
             repository.resetPrefsToDefaults()
