@@ -163,6 +163,7 @@ class NotificationHelper(private val context: Context) {
             .setAutoCancel(true)
             // Deep link: abre MessagesScreen al tocar la notificación
             .setContentIntent(buildMessagesIntent())
+            .setSilent(true)
             .build()
 
         notificationManager.notify(NOTIF_ID_MESSAGE, notification)

@@ -211,6 +211,7 @@ class SocketForegroundService : Service() {
         repository.messageEvents
             .onEach { event ->
                 Log.d(TAG, "MESSAGE_RECEIVE: ${event.sender} → ${event.message}")
+                alarmPlayer.playMessage()
                 repository.saveMessage(event, forceRead = repository.isMessagesScreenActive.value)
 
                 if (!repository.isMessagesScreenActive.value) {

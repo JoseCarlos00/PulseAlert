@@ -83,7 +83,7 @@ class AlarmPlayer(private val context: Context) {
 
                 setOnPreparedListener { mp ->
                     mp.start()
-                    mp.postDelayed({ stop() }, 3000L)
+                    mp.postDelayed({ stop() }, 1500L)
                 }
 
                 setOnErrorListener { _, what, extra ->
@@ -187,6 +187,37 @@ class AlarmPlayer(private val context: Context) {
             .setUsage(AudioAttributes.USAGE_ALARM)
             .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
             .build()
+    }
+
+    fun playMessage() {
+        if (isPlaying()) return
+
+        Log.d(TAG, "Reproduciendo sonido de mensaje")
+
+        setupAudioFocus()
+        setMaxVolume()
+
+        try {
+            mediaPlayer = createMediaPlayer(isAlarm = false).apply {
+                isLooping = false
+
+                setOnPreparedListener { mp ->
+                    mp.start()
+                    mp.postDelayed({ stop() }, 1000L)
+                }
+
+                setOnErrorListener { _, what, extra ->
+                    Log.e(TAG, "Error en MediaPlayer (message): what=$what extra=$extra")
+                    stop()
+                    true
+                }
+
+                prepareAsync()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al preparar sonido de mensaje: ${e.message}")
+            stop()
+        }
     }
 }
 
