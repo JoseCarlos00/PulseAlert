@@ -1,19 +1,25 @@
 [versions]
 agp = "9.0.1"
+#noinspection NewerVersionAvailable
 kotlin = "2.0.21"
 ksp = "2.0.21-1.0.28"
 
 # AndroidX Core
+#noinspection GradleDependency
 coreKtx = "1.17.0"
+#noinspection GradleDependency
 activityCompose = "1.12.3"
 lifecycleRuntimeKtx = "2.10.0"
 
 # Compose
+#noinspection GradleDependency
 composeBom = "2024.09.00"
+#noinspection GradleDependency
 navigationCompose = "2.9.0"
 
 # Data
 datastorePreferences = "1.2.1"
+#noinspection GradleDependency
 room = "2.7.1"
 
 # Network
