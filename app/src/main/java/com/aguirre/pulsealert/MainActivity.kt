@@ -42,17 +42,62 @@ class MainActivity : ComponentActivity() {
      * registre ANTES de que la Activity llegue a onStart().
      */
     private val permissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
+        ActivityResultContracts.RequestMultiplePermissions(),
     ) { results ->
         results.forEach { (permission, granted) ->
             val status = if (granted) "CONCEDIDO" else "DENEGADO"
             Log.d("Permissions", "$permission → $status")
         }
+        requestBackgroundLocationIfNeeded()
         // La app sigue funcionando aunque se denieguen.
         // Solo se perderán las notificaciones si POST_NOTIFICATIONS
         // es denegado — el socket y las alarmas siguen activos.
     }
 
+    private val backgroundLocationLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        Log.d("Permissions", "ACCESS_BACKGROUND_LOCATION → ${if (granted) "CONCEDIDO" else "DENEGADO"}")
+    }
+
+    private var backgroundDialogShown = false
+
+    private fun requestBackgroundLocationIfNeeded() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
+        if (!isGranted(Manifest.permission.ACCESS_FINE_LOCATION)) return
+        if (isGranted(Manifest.permission.ACCESS_BACKGROUND_LOCATION)) {
+            backgroundDialogShown = false
+            return
+        }
+        if (backgroundDialogShown) return
+        backgroundDialogShown = true
+
+        AlertDialog.Builder(this)
+            .setTitle("Ubicación en segundo plano")
+            .setMessage(
+                "Para registrar a qué punto de acceso Wi-Fi está conectado este equipo, " +
+                        "elige \"Permitir todo el tiempo\" en la siguiente pantalla."
+            )
+            .setPositiveButton("Continuar") { _, _ ->
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    startActivity(
+                        Intent(
+                            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                            "package:$packageName".toUri()
+                        )
+                    )
+                } else {
+                    backgroundLocationLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+                }
+            }
+            .setNegativeButton("Ahora no", null)
+            .show()
+    }
+
+    /**
+     * Inicializa la actividad, habilita edge-to-edge, configura la UI de Compose,
+     * solicita los permisos requeridos y procesa los intents de apertura.
+     */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -89,7 +134,50 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * Maneja el intent cuando la app ya está abierta en segundo plano.
+      * Verifica que los servicios de localización estén habilitados y los permisos
+     * de instalación de fuentes desconocidas estén concedidos al reanudar la actividad.
+     */
+    override fun onResume() {
+        super.onResume()
+        when {
+            !checkLocationEnabled() -> Unit
+            !requestBackgroundLocationIfNeeded() -> Unit
+            else -> checkInstallUnknownAppsPermissionIfNeeded()
+        }
+    }
+
+    private var installPermissionChecked = false
+
+    /**
+     * Verifica si la app tiene permiso para instalar paquetes de fuentes desconocidas (Android 8+).
+     * Si no lo tiene, muestra un diálogo explicativo y redirige a los ajustes del sistema.
+     */
+    private fun checkInstallUnknownAppsPermissionIfNeeded() {
+        if (packageManager.canRequestPackageInstalls()) {
+            installPermissionChecked = false
+            return
+        }
+        if (installPermissionChecked) return
+        installPermissionChecked = true
+
+        AlertDialog.Builder(this)
+            .setTitle("Permitir instalación de actualizaciones")
+            .setMessage(
+                "Para que PulseAlert pueda actualizarse automáticamente al recibir una nueva versión, " +
+                        "es necesario permitir la instalación de aplicaciones de fuentes desconocidas."
+            )
+            .setPositiveButton("Configurar") { _, _ ->
+                val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+                    data = "package:$packageName".toUri()
+                }
+                startActivity(intent)
+            }
+            .setNegativeButton("Ahora no", null)
+            .show()
+    }
+
+    /**
+     * Maneja un nuevo intent cuando la actividad ya se encuentra en primer plano o segundo plano.
      */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
@@ -124,8 +212,10 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    @SuppressLint("BatteryLife")
-
+    /**
+     * Comprueba y solicita los permisos obligatorios en tiempo de ejecución
+     * (ubicación precisa/aproximada y notificaciones según la versión de Android).
+     */
     private fun requestRequiredPermissions() {
 
         val toRequest = buildList {
@@ -149,9 +239,48 @@ class MainActivity : ComponentActivity() {
 
         if (toRequest.isNotEmpty()) {
             permissionLauncher.launch(toRequest.toTypedArray())
+        } else {
+            requestBackgroundLocationIfNeeded()
         }
     }
 
+    /** Bandera para evitar mostrar múltiples veces el diálogo de ubicación desactivada. */
+    private var locationDialogShown = false
+
+    /**
+     * Verifica si el GPS / servicios de ubicación del dispositivo están activos.
+     * Si están desactivados, muestra un diálogo de advertencia para que el usuario los active.
+     */
+    private fun checkLocationEnabled() {
+        if (!isGranted(Manifest.permission.ACCESS_FINE_LOCATION)) return
+
+        val lm = getSystemService(LOCATION_SERVICE) as LocationManager
+        if (LocationManagerCompat.isLocationEnabled(lm)) {
+            locationDialogShown = false
+            return
+        }
+        if (locationDialogShown) return   // evita abrir el diálogo varias veces
+        locationDialogShown = true
+
+        AlertDialog.Builder(this)
+            .setTitle("Ubicación apagada")
+            .setMessage(
+                "Con la ubicación del equipo apagada, Android oculta el punto de acceso Wi-Fi " +
+                        "al que estás conectado. Actívala para el mapeo de red."
+            )
+            .setPositiveButton("Abrir ajustes") { _, _ ->
+                startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+            }
+            .setNegativeButton("Ahora no", null)
+            .show()
+    }
+
+    /**
+     * Comprueba si un permiso específico ha sido concedido.
+     *
+     * @param permission El nombre del permiso de [Manifest.permission].
+     * @return `true` si el permiso ha sido concedido, `false` en caso contrario.
+     */
     @Suppress("SameParameterValue")
     private fun isGranted(permission: String): Boolean =
         ContextCompat.checkSelfPermission(this, permission) ==
