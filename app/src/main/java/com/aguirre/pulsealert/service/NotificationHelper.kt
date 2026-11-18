@@ -32,12 +32,14 @@ class NotificationHelper(private val context: Context) {
         const val CHANNEL_MESSAGE    = "pulsealert_message"
         const val CHANNEL_MAINTENANCE = "pulsealert_maintenance"
         const val CHANNEL_UPDATE = "pulsealert_update"
+        const val CHANNEL_DOWNLOAD = "pulsealert_download"
 
         // IDs de notificaciones
         const val NOTIF_ID_FOREGROUND = 1
         const val NOTIF_ID_ALARM      = 2
         const val NOTIF_ID_MESSAGE    = 3
         const val  NOTIF_ID_UPDATE = 5
+        const val NOTIF_ID_DOWNLOAD = 6
 
         // Extra para el Intent — indica qué pantalla abrir
         const val EXTRA_NAVIGATE_TO = "navigate_to"
@@ -169,6 +171,20 @@ class NotificationHelper(private val context: Context) {
         notificationManager.notify(NOTIF_ID_MESSAGE, notification)
     }
 
+    // ── Notificación de actualización ────────────────────────────────
+    fun showDownloadProgress(percent: Int) {
+        val n = NotificationCompat.Builder(context, CHANNEL_DOWNLOAD)
+            .setContentTitle("Descargando actualización")
+            .setContentText(if (percent >= 0) "$percent %" else "Preparando…")
+            .setSmallIcon(R.drawable.ic_notification)
+            .setProgress(100, percent.coerceAtLeast(0), percent < 0)
+            .setOngoing(true).setOnlyAlertOnce(true).setSilent(true)
+            .build()
+        notificationManager.notify(NOTIF_ID_DOWNLOAD, n)
+    }
+
+    fun clearDownloadNotification() = notificationManager.cancel(NOTIF_ID_DOWNLOAD)
+
     // ── Helpers privados ──────────────────────────────────────────────
 
     /**
@@ -253,6 +269,14 @@ class NotificationHelper(private val context: Context) {
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 description = "Notifica cuando hay una nueva versión disponible"
+            },
+
+            NotificationChannel(
+                CHANNEL_DOWNLOAD,
+                "Descarga de actualización",
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "Notifica el progreso de la descarga"
             }
         )
 

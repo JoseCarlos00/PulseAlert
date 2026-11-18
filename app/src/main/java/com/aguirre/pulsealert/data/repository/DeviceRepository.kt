@@ -10,6 +10,7 @@ import com.aguirre.pulsealert.data.remote.HeartbeatStatus
 import com.aguirre.pulsealert.data.remote.MaintenanceEvent
 import com.aguirre.pulsealert.data.remote.MessageEvent
 import com.aguirre.pulsealert.data.remote.SocketDataSource
+import com.aguirre.pulsealert.data.remote.UpdateStatus
 import io.socket.client.Ack
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -88,6 +89,9 @@ class DeviceRepository(
     val checkUpdateEvents: Flow<Ack?>  = socketDataSource.checkUpdateEvents
     val maintenanceEvents: Flow<MaintenanceEvent> = socketDataSource.maintenanceEvents
     val heartbeat: StateFlow<HeartbeatStatus> = socketDataSource.heartbeatStatus
+    private val _updateStatus = MutableStateFlow<UpdateStatus>(UpdateStatus.Idle)
+    val updateStatus: StateFlow<UpdateStatus> = _updateStatus
+
 
     // ── Acciones de configuración ─────────────────────────────────────
 
@@ -96,6 +100,7 @@ class DeviceRepository(
     suspend fun saveUpdateUrl(url: String) = prefs.saveUpdateUrl(url)
     suspend fun saveDeviceAlias(alias: String)  = prefs.saveDeviceAlias(alias)
     suspend fun resetPrefsToDefaults()          = prefs.resetToDefaults()
+
 
     /**
      * Activa o desactiva el modo mantenimiento.
@@ -167,6 +172,8 @@ class DeviceRepository(
 
     fun setOnDeviceAliasReceivedListener(listener: (String) -> Unit) =
         socketDataSource.setOnDeviceAliasReceivedListener(listener)
+
+    fun setUpdateStatus(s: UpdateStatus) { _updateStatus.value = s }
 
     // ── Estado de UI ──────────────────────────────────────────────────────
 

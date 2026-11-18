@@ -19,6 +19,8 @@ import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 import androidx.core.net.toUri
+import com.aguirre.pulsealert.data.remote.UpdateStatus
+import java.io.IOException
 
 private const val TAG = "UpdateChecker"
 
@@ -103,22 +105,52 @@ class UpdateChecker(private val context: Context) {
      * ACTION_DOWNLOAD_UPDATE (cuando el usuario toca la notificación).
      */
     suspend fun downloadAndInstall(apkUrl: String) = withContext(Dispatchers.IO) {
+        val repo = RepositoryProvider.get(context)
+        val notif = NotificationHelper(context)
+        if (repo.updateStatus.value is UpdateStatus.Downloading) return@withContext // evita doble descarga
+
+        var connection: HttpURLConnection? = null
         try {
-            Log.d(TAG, "Descargando APK desde: $apkUrl")
-            val connection = (URL(apkUrl).openConnection() as HttpURLConnection).apply { connect() }
-            if (connection.responseCode == HttpURLConnection.HTTP_OK) {
-                val file = File(context.externalCacheDir, "update.apk")
-                file.outputStream().use { fos -> connection.inputStream.copyTo(fos) }
-                Log.i(TAG, "APK descargado. Iniciando instalación.")
-                installApk(file)
-            } else {
-                Log.e(TAG, "Error al descargar APK: HTTP ${connection.responseCode}")
+            repo.setUpdateStatus(UpdateStatus.Downloading(0))
+            connection = (URL(apkUrl).openConnection() as HttpURLConnection).apply {
+                connectTimeout = 10_000; readTimeout = 15_000
             }
+            connection.connect()
+            if (connection.responseCode != HttpURLConnection.HTTP_OK)
+                throw IOException("HTTP ${connection.responseCode}")
 
-            connection.disconnect()
+            val total = connection.contentLengthLong
+            val part = File(context.externalCacheDir, "update.apk.part")
+            val target = File(context.externalCacheDir, "update.apk")
+            var done = 0L; var last = -1
 
+            connection.inputStream.use { input ->
+                part.outputStream().use { out ->
+                    val buf = ByteArray(16 * 1024)
+                    while (true) {
+                        val n = input.read(buf); if (n < 0) break
+                        out.write(buf, 0, n); done += n
+                        val p = if (total > 0) (done * 100 / total).toInt() else -1
+                        if (p != last) {
+                            last = p
+                            repo.setUpdateStatus(UpdateStatus.Downloading(p))
+                            notif.showDownloadProgress(p)
+                        }
+                    }
+                }
+            }
+            target.delete(); part.renameTo(target)
+
+            notif.clearDownloadNotification()
+            repo.setUpdateStatus(UpdateStatus.Installing)
+            installApk(target)
+            repo.setUpdateStatus(UpdateStatus.Idle)
         } catch (e: Exception) {
             Log.e(TAG, "Error al descargar APK: ${e.message}")
+            notif.clearDownloadNotification()
+            repo.setUpdateStatus(UpdateStatus.Error(e.message ?: "Error desconocido"))
+        } finally {
+            connection?.disconnect()
         }
     }
 
