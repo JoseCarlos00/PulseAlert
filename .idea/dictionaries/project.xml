@@ -2,10 +2,13 @@
   <dictionary name="project">
     <words>
       <w>Nullear</w>
+      <w>bssid</w>
       <w>corrutinas</w>
       <w>loga</w>
       <w>pusealert</w>
+      <w>rssi</w>
       <w>setea</w>
+      <w>ssid</w>
       <w>tipadas</w>
     </words>
   </dictionary>

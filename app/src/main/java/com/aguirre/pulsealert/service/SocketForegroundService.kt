@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.milliseconds
 
 private const val TAG = "SocketForegroundService"
 
@@ -109,7 +110,7 @@ class SocketForegroundService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.d(TAG, "onStartCommand: Recibido intent")
 
-        // FIX PROBLEMA 1: usar el estado real del socket, no asumir false
+        // FIX PROBLEMA 1: usar el estado real del socket, no asumir `false`
         val alreadyConnected = repository.isSocketConnected()
         val notification = notificationHelper.buildForegroundNotification(
             isConnected = alreadyConnected,
@@ -244,7 +245,7 @@ class SocketForegroundService : Service() {
 
                 // Espera los 3 segundos del sonido antes de responder PONG
                 serviceScope.launch {
-                    delay(1500)
+                    delay(1500.milliseconds)
                     repository.sendPong()
                     Log.d(TAG, "PONG enviado")
                 }

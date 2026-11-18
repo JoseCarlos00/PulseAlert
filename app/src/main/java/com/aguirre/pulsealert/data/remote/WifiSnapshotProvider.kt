@@ -3,6 +3,7 @@ package com.aguirre.pulsealert.data.remote
 import android.content.Context
 import android.net.wifi.WifiManager
 import android.os.Build
+import androidx.annotation.RequiresApi
 import com.aguirre.pulsealert.core.RepositoryProvider
 import org.json.JSONObject
 
@@ -41,24 +42,21 @@ class WifiSnapshotProvider(context: Context) {
     private val wifiManager =
         appContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
 
+    @RequiresApi(Build.VERSION_CODES.R)
     @Suppress("DEPRECATION")
     fun capture(): WifiSnapshot {
         return try {
             val info = wifiManager.connectionInfo
             val rawBssid = info?.bssid
-            val restricted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                rawBssid == null ||
-                        rawBssid == "02:00:00:00:00:00" ||
-                        info.ssid == WifiManager.UNKNOWN_SSID
-            } else {
-                TODO("VERSION.SDK_INT < R")
-            }
+            val restricted = rawBssid == null ||
+                    rawBssid == "02:00:00:00:00:00" ||
+                    info.ssid == WifiManager.UNKNOWN_SSID
 
             val freq = info?.frequency ?: -1
 
             WifiSnapshot(
                 ssid = if (restricted) null else info.ssid?.trim('"'),
-                bssid = if (restricted) null else rawBssid?.lowercase(),
+                bssid = if (restricted) null else rawBssid.lowercase(),
                 rssi = info?.rssi ?: -127,
                 frequencyMhz = freq,
                 channel = freqToChannel(freq),
@@ -68,7 +66,7 @@ class WifiSnapshotProvider(context: Context) {
                 locationRestricted = restricted
             )
         } catch (_: Exception) {
-            // Nunca debe tumbar el heartbeat por un fallo al leer el Wi-Fi
+            // Nunca debe tumbar el heartbeat por un fallo al leer el Wifi
             WifiSnapshot(
                 ssid = null, bssid = null, rssi = -127,
                 frequencyMhz = -1, channel = -1, linkSpeedMbps = -1,
