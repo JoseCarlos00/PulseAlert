@@ -27,6 +27,9 @@
     <!-- Recomendado para apps internas con servicios persistentes -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
     <!-- SOLUCIÓN AL WARNING: Visibilidad para el instalador de paquetes -->
     <queries>
         <intent>

@@ -6,8 +6,6 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import android.os.PowerManager
-import android.provider.Settings
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -22,7 +20,6 @@ import com.aguirre.pulsealert.service.SocketForegroundService
 import com.aguirre.pulsealert.service.UpdateChecker
 import com.aguirre.pulsealert.ui.messages.MessagesViewModel
 import com.aguirre.pulsealert.ui.theme.PulseAlertTheme
-import androidx.core.net.toUri
 
 class MainActivity : ComponentActivity() {
 
@@ -115,35 +112,30 @@ class MainActivity : ComponentActivity() {
     }
 
     @SuppressLint("BatteryLife")
+
     private fun requestRequiredPermissions() {
-        // Permisos de sistema (diálogo estándar)
+
         val toRequest = buildList {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                if (!isGranted(Manifest.permission.POST_NOTIFICATIONS)) {
-                    add(Manifest.permission.POST_NOTIFICATIONS)
-                }
+
+            // Android 8 hasta Android 13+
+            if (!isGranted(Manifest.permission.ACCESS_FINE_LOCATION)) {
+                add(Manifest.permission.ACCESS_FINE_LOCATION)
+            }
+
+            if (!isGranted(Manifest.permission.ACCESS_COARSE_LOCATION)) {
+                add(Manifest.permission.ACCESS_COARSE_LOCATION)
+            }
+
+            // Android 13+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                !isGranted(Manifest.permission.POST_NOTIFICATIONS)
+            ) {
+                add(Manifest.permission.POST_NOTIFICATIONS)
             }
         }
+
         if (toRequest.isNotEmpty()) {
             permissionLauncher.launch(toRequest.toTypedArray())
-        }
-
-        // REQUEST_INSTALL_PACKAGES: Requiere abrir ajustes
-        if (!packageManager.canRequestPackageInstalls()) {
-            val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
-                data = "package:$packageName".toUri()
-            }
-            startActivity(intent)
-        }
-
-        // Recomendado para apps internas: Ignorar optimización de batería
-        // Esto asegura que el Socket.IO no se desconecte en segundo plano.
-        val pm = getSystemService(POWER_SERVICE) as PowerManager
-        if (!pm.isIgnoringBatteryOptimizations(packageName)) {
-            val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                data = "package:$packageName".toUri()
-            }
-            startActivity(intent)
         }
     }
 
