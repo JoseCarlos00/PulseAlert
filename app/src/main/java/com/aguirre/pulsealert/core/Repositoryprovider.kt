@@ -7,6 +7,7 @@ import android.provider.Settings
 import androidx.core.content.pm.PackageInfoCompat
 import com.aguirre.pulsealert.data.local.AppPreferences
 import com.aguirre.pulsealert.data.remote.SocketDataSource
+import com.aguirre.pulsealert.data.remote.WifiSnapshotProvider
 import com.aguirre.pulsealert.data.repository.DeviceRepository
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -96,7 +97,8 @@ object RepositoryProvider {
             androidId   = androidId,
             deviceAlias = deviceAlias,
             appVersion  = appVersion,
-            ipAddress   = ipAddress
+            ipAddress   = ipAddress,
+            wifiProvider = WifiSnapshotProvider(context)
         )
 
         val messageDao = AppDatabase.getInstance(context).messageDao()

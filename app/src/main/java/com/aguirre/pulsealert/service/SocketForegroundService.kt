@@ -3,6 +3,7 @@ package com.aguirre.pulsealert.service
 import android.app.Service
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
@@ -40,6 +41,8 @@ class SocketForegroundService : Service() {
     private var activeSocketUrl: String = ""
 
     private var currentDeviceAlias: String = ""
+
+    private var wifiLock: WifiManager.WifiLock? = null
 
     // ── Ciclo de vida ─────────────────────────────────────────────────
 
@@ -93,6 +96,13 @@ class SocketForegroundService : Service() {
         // Verificar actualización al arrancar
         serviceScope.launch {
             updateChecker.checkAndNotify()
+        }
+
+        val wm = applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
+        @Suppress("DEPRECATION")
+        wifiLock = wm.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "PulseAlert:wifi").apply {
+            setReferenceCounted(false)
+            acquire()
         }
     }
 
@@ -163,7 +173,8 @@ class SocketForegroundService : Service() {
         
         alarmPlayer.stop()
         repository.disconnectSocket()
-        
+
+        wifiLock?.takeIf { it.isHeld }?.release()
         super.onDestroy()
     }
 

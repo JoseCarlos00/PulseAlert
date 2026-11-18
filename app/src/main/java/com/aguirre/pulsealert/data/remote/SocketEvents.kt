@@ -32,5 +32,6 @@ object SocketEvents {
     object Outgoing {
         const val REGISTER_DEVICE = "REGISTER_DEVICE"
         const val PONG            = "PONG"
+        const val HEARTBEAT       = "HEARTBEAT"
     }
 }

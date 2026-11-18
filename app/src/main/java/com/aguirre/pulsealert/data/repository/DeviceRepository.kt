@@ -6,6 +6,7 @@ import com.aguirre.pulsealert.data.local.MessageDao
 import com.aguirre.pulsealert.data.local.MessageEntity
 import com.aguirre.pulsealert.data.remote.AlarmEvent
 import com.aguirre.pulsealert.data.remote.ConnectionState
+import com.aguirre.pulsealert.data.remote.HeartbeatStatus
 import com.aguirre.pulsealert.data.remote.MaintenanceEvent
 import com.aguirre.pulsealert.data.remote.MessageEvent
 import com.aguirre.pulsealert.data.remote.SocketDataSource
@@ -86,6 +87,7 @@ class DeviceRepository(
     val pingEvents: Flow<Unit>         = socketDataSource.pingEvents
     val checkUpdateEvents: Flow<Ack?>  = socketDataSource.checkUpdateEvents
     val maintenanceEvents: Flow<MaintenanceEvent> = socketDataSource.maintenanceEvents
+    val heartbeat: StateFlow<HeartbeatStatus> = socketDataSource.heartbeatStatus
 
     // ── Acciones de configuración ─────────────────────────────────────
 

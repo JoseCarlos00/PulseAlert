@@ -1,15 +1,27 @@
 package com.aguirre.pulsealert.data.remote
 
+import android.os.SystemClock
 import android.util.Log
 import io.socket.client.Ack
 import io.socket.client.IO
 import io.socket.client.Socket
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.flow.update
+import kotlin.coroutines.resume
 import org.json.JSONObject
 import java.net.URI
 
@@ -53,6 +65,12 @@ enum class ConnectionState {
     ERROR
 }
 
+data class HeartbeatStatus(
+    val lastAckMs: Long = 0L,     // epoch del último ACK recibido
+    val latencyMs: Long = -1L,
+    val missed: Int = 0
+)
+
 // ── SocketDataSource ──────────────────────────────────────────────────────────
 
 /**
@@ -80,8 +98,25 @@ class SocketDataSource(
     private val androidId: String,
     private val deviceAlias: String,
     private val appVersion: Long?,
-    private val ipAddress: String
+    private val ipAddress: String,
+    private val wifiProvider: WifiSnapshotProvider
 ) {
+    companion object {
+        private const val HEARTBEAT_INTERVAL_MS = 25_000L
+        private const val HEARTBEAT_ACK_TIMEOUT_MS = 8_000L
+        private const val HEARTBEAT_MAX_MISSED = 2
+    }
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    @Volatile
+    private var heartbeatJob: Job? = null
+
+    private var lastBssid: String? = null
+
+    private val _heartbeatStatus = MutableStateFlow(HeartbeatStatus())
+    val heartbeatStatus: StateFlow<HeartbeatStatus> = _heartbeatStatus.asStateFlow()
+
     private var socket: Socket? = null
 
     // FIX PROBLEMA 2: Flag que impide reconexiones durante mantenimiento
@@ -176,6 +211,8 @@ class SocketDataSource(
      * Esto evita que Socket.IO intente reconectar entre pasos.
      */
     fun disconnect() {
+        heartbeatJob?.cancel()
+
         val s = socket ?: run {
             Log.d(TAG, "disconnect() llamado pero socket ya era null")
             return
@@ -216,6 +253,7 @@ class SocketDataSource(
             consecutiveFailCount = 0  // resetear al conectar exitosamente
             _connectionState.tryEmit(ConnectionState.CONNECTED)
             registerDevice(socket)
+            startHeartbeat(socket)
         }
 
         socket.on(Socket.EVENT_DISCONNECT) { args ->
@@ -270,6 +308,46 @@ class SocketDataSource(
                 Log.e(TAG, "Error en REGISTER_DEVICE: $reason")
             }
         })
+    }
+
+    private fun startHeartbeat(s: Socket) {
+        heartbeatJob?.cancel()
+        _heartbeatStatus.value = HeartbeatStatus()
+        heartbeatJob = scope.launch {
+            var missed = 0
+
+            while (isActive) {
+                delay(HEARTBEAT_INTERVAL_MS)
+                if (!s.connected()) continue   // emit() con socket caído solo encola
+
+                val sentAt = SystemClock.elapsedRealtime()
+                val ack = sendHeartbeat(s, buildHeartbeatPayload())
+
+                if (ack != null) {
+                    missed = 0
+                    _heartbeatStatus.value = HeartbeatStatus(
+                        lastAckMs = System.currentTimeMillis(),
+                        latencyMs = SystemClock.elapsedRealtime() - sentAt,
+                        missed = 0
+                    )
+                    // Si algún evento perdió el estado, el ACK es prueba de vida
+                    if (_connectionState.value != ConnectionState.CONNECTED) {
+                        _connectionState.tryEmit(ConnectionState.CONNECTED)
+                    }
+                } else {
+                    missed++
+                    _heartbeatStatus.update { it.copy(missed = missed) }
+                    Log.w(TAG, "Heartbeat sin ACK ($missed/$HEARTBEAT_MAX_MISSED)")
+                    if (missed >= HEARTBEAT_MAX_MISSED) {
+                        Log.e(TAG, "Conexión zombi. Forzando reconexión limpia.")
+                        _connectionState.tryEmit(ConnectionState.ERROR)
+                        disconnect()                       // cancela este job
+                        if (reconnectionEnabled) connect() // socket nuevo
+                        return@launch
+                    }
+                }
+            }
+        }
     }
 
     // ── Listeners de eventos entrantes ────────────────────────────────
@@ -449,6 +527,46 @@ class SocketDataSource(
         reconnectionEnabled = true
         disconnect()
         connect()
+    }
+
+    private suspend fun sendHeartbeat(s: Socket, payload: JSONObject): JSONObject? =
+        withTimeoutOrNull(HEARTBEAT_ACK_TIMEOUT_MS) {
+            Log.d("HEARTBEAT", "Enviando payload: $payload")
+
+            suspendCancellableCoroutine { cont ->
+                s.emit(SocketEvents.Outgoing.HEARTBEAT, payload, Ack { args ->
+
+                    Log.d("HEARTBEAT", "ACK recibido - args: ${args.contentToString()}")
+
+                    args?.forEachIndexed { index, arg ->
+                        Log.d(
+                            "HEARTBEAT",
+                            "ACK[$index]: ${arg?.javaClass?.name} = $arg"
+                        )
+                    }
+
+                    if (cont.isActive) {
+                        val response = args?.firstOrNull() as? JSONObject
+
+                        Log.d("HEARTBEAT", "Respuesta JSON: $response")
+
+                        cont.resume(response ?: JSONObject())
+                    }
+                })
+            }
+        }
+
+    private fun buildHeartbeatPayload(): JSONObject {
+        val snap = wifiProvider.capture()
+        val roamedFrom = if (lastBssid != null && snap.bssid != null && snap.bssid != lastBssid) lastBssid else null
+        snap.bssid?.let { lastBssid = it }
+
+        return JSONObject().apply {
+            put("androidId", androidId)
+            put("clientTime", System.currentTimeMillis())
+            put("ipAddress", snap.ipAddress)          // IP fresca
+            put("wifi", snap.toJson(roamedFrom))      // ver punto 3
+        }
     }
 
     /**
