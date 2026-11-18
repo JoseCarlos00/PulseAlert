@@ -55,7 +55,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private val backgroundLocationLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
+        ActivityResultContracts.RequestPermission(),
     ) { granted ->
         Log.d("Permissions", "ACCESS_BACKGROUND_LOCATION → ${if (granted) "CONCEDIDO" else "DENEGADO"}")
     }
@@ -73,12 +73,15 @@ class MainActivity : ComponentActivity() {
         backgroundDialogShown = true
 
         AlertDialog.Builder(this)
-            .setTitle("Ubicación en segundo plano")
+            .setTitle("Activar Ubicación en Segundo Plano")
             .setMessage(
-                "Para registrar a qué punto de acceso Wi-Fi está conectado este equipo, " +
-                        "elige \"Permitir todo el tiempo\" en la siguiente pantalla."
+                "Para registrar el Wi-Fi en segundo plano, sigue estos sencillos pasos:\n\n" +
+                        "1. Toca **Permisos**.\n" +
+                        "2. Toca **Ubicación**.\n" +
+                        "3. Selecciona **\"Permitir todo el tiempo\"**.\n\n" +
+                        "Al terminar, regresa a la app."
             )
-            .setPositiveButton("Continuar") { _, _ ->
+            .setPositiveButton("Abrir Ajustes") { _, _ ->
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                     startActivity(
                         Intent(
@@ -134,16 +137,14 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-      * Verifica que los servicios de localización estén habilitados y los permisos
+     * Verifica que los servicios de localización estén habilitados y los permisos
      * de instalación de fuentes desconocidas estén concedidos al reanudar la actividad.
      */
     override fun onResume() {
         super.onResume()
-        when {
-            !checkLocationEnabled() -> Unit
-            !requestBackgroundLocationIfNeeded() -> Unit
-            else -> checkInstallUnknownAppsPermissionIfNeeded()
-        }
+        checkLocationEnabled()
+        requestBackgroundLocationIfNeeded()
+        checkInstallUnknownAppsPermissionIfNeeded()
     }
 
     private var installPermissionChecked = false
@@ -230,7 +231,7 @@ class MainActivity : ComponentActivity() {
             }
 
             // Android 13+
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            if ((Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) &&
                 !isGranted(Manifest.permission.POST_NOTIFICATIONS)
             ) {
                 add(Manifest.permission.POST_NOTIFICATIONS)
