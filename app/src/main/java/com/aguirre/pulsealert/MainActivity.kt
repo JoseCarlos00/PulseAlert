@@ -1,17 +1,21 @@
 package com.aguirre.pulsealert
 
 import android.Manifest
-import android.annotation.SuppressLint
+import android.app.AlertDialog
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.location.LocationManager
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.core.location.LocationManagerCompat
+import androidx.core.net.toUri
 import androidx.lifecycle.ViewModelProvider
 import com.aguirre.pulsealert.core.AppNavigation
 import com.aguirre.pulsealert.core.Screen
@@ -21,8 +25,15 @@ import com.aguirre.pulsealert.service.UpdateChecker
 import com.aguirre.pulsealert.ui.messages.MessagesViewModel
 import com.aguirre.pulsealert.ui.theme.PulseAlertTheme
 
+/**
+ * Actividad principal de la aplicación PulseAlert.
+ * Se encarga de gestionar el ciclo de vida de los servicios en primer plano,
+ * la solicitud de permisos en tiempo de ejecución (ubicación y notificaciones),
+ * la verificación de servicios de ubicación y el enrutamiento de intents o deep links.
+ */
 class MainActivity : ComponentActivity() {
 
+    /** ViewModel compartido para la gestión de navegación y estado de mensajes. */
     private lateinit var messagesViewModel: MessagesViewModel
 
     /**
@@ -87,7 +98,9 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * Procesa el Intent para disparar la navegación si viene de una notificación.
+     * Procesa el Intent recibido para disparar acciones de navegación o descargas de actualizaciones.
+     *
+     * @param intent El intent recibido que puede contener acciones de deep link.
      */
     private fun handleIntent(intent: Intent?) {
         Log.d("MainActivity", "handleIntent: action=${intent?.action}")
