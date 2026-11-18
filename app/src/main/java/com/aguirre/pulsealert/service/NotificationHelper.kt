@@ -171,14 +171,17 @@ class NotificationHelper(private val context: Context) {
         notificationManager.notify(NOTIF_ID_MESSAGE, notification)
     }
 
-    // ── Notificación de actualización ────────────────────────────────
+    // —— Notificación de actualización —───────
     fun showDownloadProgress(percent: Int) {
         val n = NotificationCompat.Builder(context, CHANNEL_DOWNLOAD)
             .setContentTitle("Descargando actualización")
             .setContentText(if (percent >= 0) "$percent %" else "Preparando…")
             .setSmallIcon(R.drawable.ic_notification)
             .setProgress(100, percent.coerceAtLeast(0), percent < 0)
-            .setOngoing(true).setOnlyAlertOnce(true).setSilent(true)
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .setSilent(true)
+            .setContentIntent(buildMainIntent())
             .build()
         notificationManager.notify(NOTIF_ID_DOWNLOAD, n)
     }

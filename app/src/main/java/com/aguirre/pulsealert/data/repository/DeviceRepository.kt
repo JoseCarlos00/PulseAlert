@@ -93,7 +93,7 @@ class DeviceRepository(
     val updateStatus: StateFlow<UpdateStatus> = _updateStatus
 
 
-    // ── Acciones de configuración ─────────────────────────────────────
+    // —— Acciones de configuración ————————————————————————————————————
 
     suspend fun saveServerUrl(url: String)      = prefs.saveServerUrl(url)
     suspend fun saveStatusUrl(url: String)      = prefs.saveStatusUrl(url)
@@ -111,7 +111,7 @@ class DeviceRepository(
         prefs.setMaintenanceMode(active, untilMs)
     suspend fun getMaintenanceUntilMs(): Long = prefs.getMaintenanceUntilMs()
 
-    // ── Acciones de mensajes ──────────────────────────────────────────
+    // —— Acciones de mensajes ————————————————————————————————————
 
     /**
      * Persiste un mensaje entrante en Room.
@@ -140,7 +140,7 @@ class DeviceRepository(
      */
     suspend fun deleteAllMessages() = messageDao.deleteAll()
 
-    // ── Acciones del socket ───────────────────────────────────────────
+    // —─ Acciones del socket ————————————————————————————————————
 
     /**
      * Inicia la conexión Socket.IO.

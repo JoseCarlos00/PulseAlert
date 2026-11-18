@@ -2,17 +2,22 @@ package com.aguirre.pulsealert.ui.home
 
 import android.annotation.SuppressLint
 import android.app.Application
+import android.content.Intent
 import android.provider.Settings
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.aguirre.pulsealert.core.RepositoryProvider
 import com.aguirre.pulsealert.data.remote.ConnectionState
+import com.aguirre.pulsealert.data.remote.UpdateStatus
+import com.aguirre.pulsealert.service.SocketForegroundService
+import com.aguirre.pulsealert.service.UpdateChecker
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.milliseconds
 
 data class HomeUiState(
     val connectionState: ConnectionState = ConnectionState.DISCONNECTED,
@@ -23,7 +28,9 @@ data class HomeUiState(
     val isLoading: Boolean = true,
     // Mantenimiento
     val isMaintenanceMode: Boolean = false,
-    val maintenanceUntilMs: Long = 0L
+    val maintenanceUntilMs: Long = 0L,
+    // Actualización
+    val updateStatus: UpdateStatus = UpdateStatus.Idle
 )
 
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
@@ -38,6 +45,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         observeConnectionState()
         observeDeviceAlias()
         observeMaintenanceState()
+        observeUpdateStatus()
     }
 
     private fun loadStaticInfo() {
@@ -96,10 +104,27 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    private fun observeUpdateStatus() {
+        viewModelScope.launch {
+            repository.updateStatus.collect { status ->
+                _uiState.update { it.copy(updateStatus = status) }
+            }
+        }
+    }
+
+    fun startUpdate(downloadUrl: String) {
+        val context = getApplication<Application>()
+        val intent = Intent(context, SocketForegroundService::class.java).apply {
+            action = UpdateChecker.ACTION_DOWNLOAD_UPDATE
+            putExtra(UpdateChecker.EXTRA_APK_URL, downloadUrl)
+        }
+        context.startService(intent)
+    }
+
     fun reconnect() {
         viewModelScope.launch {
             repository.disconnectSocket()
-            delay(500)
+            delay(500.milliseconds)
             repository.connectSocket()
         }
     }

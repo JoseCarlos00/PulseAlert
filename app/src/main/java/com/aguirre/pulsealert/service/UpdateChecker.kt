@@ -52,7 +52,8 @@ class UpdateChecker(private val context: Context) {
     suspend fun checkAndNotify(): JSONObject = withContext(Dispatchers.IO) {
         val result = JSONObject()
         try {
-            val updateUrl = RepositoryProvider.get(context).updateUrl.first()
+            val repo = RepositoryProvider.get(context)
+            val updateUrl = repo.updateUrl.first()
             Log.d(TAG, "Verificando actualizaciones en: $updateUrl")
 
             val connection = (URL(updateUrl).openConnection() as HttpURLConnection).apply {
@@ -76,10 +77,12 @@ class UpdateChecker(private val context: Context) {
 
                 if (latestVersionCode > currentVersion) {
                     Log.i(TAG, "Nueva versión disponible. Mostrando notificación.")
+                    repo.setUpdateStatus(UpdateStatus.Available(latestVersionCode, downloadUrl))
                     showUpdateNotification(downloadUrl)
                     result.put("updateAvailable", true)
                 } else {
                     Log.d(TAG, "La app está actualizada.")
+                    repo.setUpdateStatus(UpdateStatus.Idle)
                     result.put("updateAvailable", false)
                 }
             } else {

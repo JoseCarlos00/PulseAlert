@@ -28,6 +28,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -40,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aguirre.pulsealert.data.remote.ConnectionState
+import com.aguirre.pulsealert.data.remote.UpdateStatus
 import com.aguirre.pulsealert.ui.components.MaintenanceCard
 
 @Composable
@@ -70,10 +72,10 @@ fun HomeScreen(
                 style = MaterialTheme.typography.headlineSmall
             )
 
-            // ── Tarjeta de conexión ───────────────────────────────────────
+            // —— Tarjeta de conexión ————————————————————————————————————
             ConnectionCard(state = uiState.connectionState)
 
-            // ── Banner de mantenimiento — solo visible cuando aplica ──────
+            // —— Banner de mantenimiento — solo visible cuando aplica —————
             AnimatedVisibility(
                 visible = uiState.isMaintenanceMode,
                 enter = fadeIn() + expandVertically(),
@@ -81,9 +83,21 @@ fun HomeScreen(
             ) {
                 MaintenanceCard(untilMs = uiState.maintenanceUntilMs)
             }
+
+            // —— Tarjeta de actualización ————————————————————————————————————
+            AnimatedVisibility(
+                visible = uiState.updateStatus !is UpdateStatus.Idle,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                UpdateCard(
+                    status = uiState.updateStatus,
+                    onDownload = viewModel::startUpdate
+                )
+            }
         }
 
-        // ── Parte central (scrollable) ─────────────────
+        // —— Parte central (scrollable) ——————————————————————
         Column(
             modifier = Modifier
                 .weight(1f)
@@ -91,7 +105,7 @@ fun HomeScreen(
                 .padding(vertical = 16.dp),
             verticalArrangement = Arrangement.Center
         ) {
-            // ── Tarjeta de información ────────────────────────────────────
+            // —— Tarjeta de información ——————————————————————
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
@@ -129,7 +143,7 @@ fun HomeScreen(
             }
         }
 
-        // ── Botón de reconexión manual ────────────────────────────────
+        // —— Botón de reconexión manual ——————————————————————
         Button(
             onClick = viewModel::reconnect,
             modifier = Modifier.fillMaxWidth(),
@@ -211,5 +225,91 @@ private fun InfoRow(
                 style = MaterialTheme.typography.bodyLarge
             )
         }
+    }
+}
+
+@Composable
+private fun UpdateCard(status: UpdateStatus, onDownload: (String) -> Unit) {
+    when (status) {
+        is UpdateStatus.Available -> Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer
+            )
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Nueva versión disponible",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    Text(
+                        text = "Versión ${status.versionCode}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                    )
+                }
+                Button(onClick = { onDownload(status.downloadUrl) }) {
+                    Text("Actualizar")
+                }
+            }
+        }
+        is UpdateStatus.Downloading -> Card(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = if (status.percent >= 0) "Descargando… ${status.percent} %" else "Descargando…",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                if (status.percent >= 0) {
+                    LinearProgressIndicator(
+                        progress = { status.percent / 100f },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                } else {
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                }
+            }
+        }
+        is UpdateStatus.Installing -> Card(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                Text(
+                    text = "Abriendo instalador…",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
+        is UpdateStatus.Error -> Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.errorContainer
+            )
+        ) {
+            Text(
+                text = "Error de actualización: ${status.reason}",
+                color = MaterialTheme.colorScheme.onErrorContainer,
+                modifier = Modifier.padding(16.dp),
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+        UpdateStatus.Idle -> Unit
     }
 }
