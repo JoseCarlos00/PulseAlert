@@ -51,7 +51,7 @@ class AppPreferences(private val context: Context) {
         private val KEY_UNLOCK_PIN = stringPreferencesKey("unlock_pin")
     }
 
-    // ── Flows de lectura ──────────────────────────────────────────────
+    // —— Flows de lectura ——————————————————————————————————————————————
 
     /**
      * URL del servidor Socket.IO.
@@ -97,7 +97,7 @@ class AppPreferences(private val context: Context) {
         prefs[KEY_UNLOCK_PIN] ?: AppConfig.DEFAULT_UNLOCK_PIN
     }
 
-    // ── Funciones de escritura ────────────────────────────────────────
+    // —— Funciones de escritura ————————————————————————
 
     /**
      * Guarda la URL del servidor.

@@ -1,6 +1,8 @@
 package com.aguirre.pulsealert.data.repository
 
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import com.aguirre.pulsealert.data.local.AppPreferences
 import com.aguirre.pulsealert.data.local.MessageDao
 import com.aguirre.pulsealert.data.local.MessageEntity
@@ -146,6 +148,7 @@ class DeviceRepository(
      * Inicia la conexión Socket.IO.
      * Llamado desde ForegroundService.onStartCommand().
      */
+    @RequiresApi(Build.VERSION_CODES.R)
     fun connectSocket() = socketDataSource.connect()
 
     /**
@@ -164,6 +167,7 @@ class DeviceRepository(
     fun isSocketConnected(): Boolean = socketDataSource.isConnected()
 
     fun disableSocketReconnection() = socketDataSource.disableReconnection()
+    @RequiresApi(Build.VERSION_CODES.R)
     fun reconnectWithNewUrl(newServerUrl: String) = socketDataSource.reconnectWithNewUrl(newServerUrl)
     fun enableSocketReconnection() = socketDataSource.enableReconnection()
 

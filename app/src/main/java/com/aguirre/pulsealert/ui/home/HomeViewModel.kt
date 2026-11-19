@@ -3,7 +3,9 @@ package com.aguirre.pulsealert.ui.home
 import android.annotation.SuppressLint
 import android.app.Application
 import android.content.Intent
+import android.os.Build
 import android.provider.Settings
+import androidx.annotation.RequiresApi
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.aguirre.pulsealert.core.RepositoryProvider
@@ -121,6 +123,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         context.startService(intent)
     }
 
+    @RequiresApi(Build.VERSION_CODES.R)
     fun reconnect() {
         viewModelScope.launch {
             repository.disconnectSocket()

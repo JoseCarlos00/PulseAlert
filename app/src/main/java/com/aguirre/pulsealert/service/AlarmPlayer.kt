@@ -127,7 +127,7 @@ class AlarmPlayer(private val context: Context) {
      */
     fun isPlaying(): Boolean = mediaPlayer?.isPlaying == true
 
-    // ── Helpers privados corregidos ──────────────────────────────────
+    // —— Helpers privados corregidos ——————————————————————————————
 
     /**
      * Crea un MediaPlayer vacío y le asigna la fuente de datos SIN prepararlo.

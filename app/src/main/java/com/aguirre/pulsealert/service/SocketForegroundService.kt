@@ -7,6 +7,7 @@ import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
+import androidx.annotation.RequiresApi
 import com.aguirre.pulsealert.core.RepositoryProvider
 import com.aguirre.pulsealert.data.remote.ConnectionState
 import com.aguirre.pulsealert.data.repository.DeviceRepository
@@ -47,6 +48,7 @@ class SocketForegroundService : Service() {
 
     // ── Ciclo de vida ─────────────────────────────────────────────────
 
+    @RequiresApi(Build.VERSION_CODES.R)
     override fun onCreate() {
         super.onCreate()
         Log.d(TAG, "onCreate: Inicializando servicio")
@@ -107,6 +109,7 @@ class SocketForegroundService : Service() {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.R)
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.d(TAG, "onStartCommand: Recibido intent")
 
@@ -117,15 +120,11 @@ class SocketForegroundService : Service() {
             deviceAlias = currentDeviceAlias
         )
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(
-                NOTIF_ID_FOREGROUND,
-                notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
-            )
-        } else {
-            startForeground(NOTIF_ID_FOREGROUND, notification)
-        }
+        startForeground(
+            NOTIF_ID_FOREGROUND,
+            notification,
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
+        )
 
         // Solo conectar si no está ya conectado
         if (!repository.isSocketConnected()) {
@@ -317,6 +316,7 @@ class SocketForegroundService : Service() {
      * distinctUntilChanged() + comparación explícita garantizan que solo
      * reconectamos si la URL realmente es diferente a la que ya usamos.
      */
+    @RequiresApi(Build.VERSION_CODES.R)
     private fun observeServerUrlChanges() {
         repository.serverUrl
             .distinctUntilChanged()

@@ -32,6 +32,7 @@ import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Tarjeta de un mensaje individual.
@@ -59,7 +60,7 @@ fun MessageItem(
     // Disparar el reset después de 2 segundos
     LaunchedEffect (isNew) {
         if (isNew) {
-            delay(2000)
+            delay(2000.milliseconds)
             onAnimationEnd()
         }
     }

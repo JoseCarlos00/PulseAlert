@@ -1,7 +1,9 @@
 package com.aguirre.pulsealert.data.remote
 
+import android.os.Build
 import android.os.SystemClock
 import android.util.Log
+import androidx.annotation.RequiresApi
 import io.socket.client.Ack
 import io.socket.client.IO
 import io.socket.client.Socket
@@ -24,10 +26,11 @@ import kotlinx.coroutines.flow.update
 import kotlin.coroutines.resume
 import org.json.JSONObject
 import java.net.URI
+import kotlin.time.Duration.Companion.milliseconds
 
 private const val TAG = "SocketDataSource"
 
-// ── Modelos de eventos entrantes ─────────────────────────────────────────────
+// —— Modelos de eventos entrantes ————————————————————————————
 
 /**
  * Datos del evento ALARM_ACTIVATE recibido desde el servidor.
@@ -157,6 +160,7 @@ class SocketDataSource(
      *
      * Una vez conectado, registra el dispositivo con REGISTER_DEVICE.
      */
+    @RequiresApi(Build.VERSION_CODES.R)
     fun connect() {
         // FIX PROBLEMA 2: Si el mantenimiento está activo, no conectar
         if (!reconnectionEnabled) {
@@ -247,6 +251,7 @@ class SocketDataSource(
 
     // ── Listeners de conexión ─────────────────────────────────────────
 
+    @RequiresApi(Build.VERSION_CODES.R)
     private fun registerConnectionListeners(socket: Socket) {
         socket.on(Socket.EVENT_CONNECT) {
             Log.d(TAG, "Conectado al servidor")
@@ -278,7 +283,7 @@ class SocketDataSource(
         }
     }
 
-    // ── Registro del dispositivo ──────────────────────────────────────
+    // —— Registro del dispositivo ————————————————————————————————————
 
     /**
      * Envía REGISTER_DEVICE tras conectar exitosamente.
@@ -310,6 +315,7 @@ class SocketDataSource(
         })
     }
 
+    @RequiresApi(Build.VERSION_CODES.R)
     private fun startHeartbeat(s: Socket) {
         heartbeatJob?.cancel()
         _heartbeatStatus.value = HeartbeatStatus()
@@ -317,7 +323,7 @@ class SocketDataSource(
             var missed = 0
 
             while (isActive) {
-                delay(HEARTBEAT_INTERVAL_MS)
+                delay(HEARTBEAT_INTERVAL_MS.milliseconds)
                 if (!s.connected()) continue   // emit() con socket caído solo encola
 
                 val sentAt = SystemClock.elapsedRealtime()
@@ -479,7 +485,7 @@ class SocketDataSource(
         }
     }
 
-    // ── Emisión de eventos ────────────────────────────────────────────
+    // —— Emisión de eventos ——————————————————————————————————
     /**
      * Envía la respuesta PONG al servidor tras recibir un PING.
      * El ForegroundService llama esto después de reproducir el sonido (3s delay).
@@ -520,6 +526,7 @@ class SocketDataSource(
         Log.d(TAG, "Reconexión automática rehabilitada")
     }
 
+    @RequiresApi(Build.VERSION_CODES.R)
     fun reconnectWithNewUrl(newServerUrl: String) {
         Log.d(TAG, "Reconectando con nueva URL: $newServerUrl")
         serverUrl = newServerUrl
@@ -530,7 +537,7 @@ class SocketDataSource(
     }
 
     private suspend fun sendHeartbeat(s: Socket, payload: JSONObject): JSONObject? =
-        withTimeoutOrNull(HEARTBEAT_ACK_TIMEOUT_MS) {
+        withTimeoutOrNull(HEARTBEAT_ACK_TIMEOUT_MS.milliseconds) {
             Log.d("HEARTBEAT", "Enviando payload: $payload")
 
             suspendCancellableCoroutine { cont ->
@@ -556,6 +563,7 @@ class SocketDataSource(
             }
         }
 
+    @RequiresApi(Build.VERSION_CODES.R)
     private fun buildHeartbeatPayload(): JSONObject {
         val snap = wifiProvider.capture()
         val roamedFrom = if (lastBssid != null && snap.bssid != null && snap.bssid != lastBssid) lastBssid else null

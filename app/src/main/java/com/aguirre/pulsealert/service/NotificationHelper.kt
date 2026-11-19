@@ -54,7 +54,7 @@ class NotificationHelper(private val context: Context) {
         createChannels()
     }
 
-    // ── Notificación del ForegroundService ────────────────────────────
+    // —— Notificación del ForegroundService ————————————————————————
 
     /**
      * Crea la notificación persistente que mantiene vivo el servicio.
@@ -124,7 +124,7 @@ class NotificationHelper(private val context: Context) {
         updateForegroundNotification(isConnected = false, deviceAlias = "")
     }
 
-    // ── Notificación de alarma ────────────────────────────────────────
+    // —— Notificación de alarma ────────────────────────────────────────
 
     /**
      * Lanza una notificación de alarma crítica con alta prioridad.

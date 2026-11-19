@@ -99,7 +99,7 @@ fun MessagesScreen(
         }
     }
 
-    // ── Diálogo de confirmación para limpiar ──────────────────────────
+    // —— Diálogo de confirmación para limpiar ————————————————————————————————
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
