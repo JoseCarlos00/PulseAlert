@@ -4,6 +4,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Mail
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Wifi
 import androidx.compose.ui.graphics.vector.ImageVector
 
 /**
@@ -39,6 +40,12 @@ sealed class Screen(
         icon = Icons.Outlined.Mail
     )
 
+    object Wifi : Screen(
+        route = "wifi",
+        title = "Red",
+        icon = Icons.Outlined.Wifi
+    )
+
     object Settings : Screen(
         route = "settings",
         title = "Configuración",
@@ -54,5 +61,6 @@ sealed class Screen(
 val bottomNavScreens = listOf(
     Screen.Home,
     Screen.Messages,
+    Screen.Wifi,
     Screen.Settings
 )

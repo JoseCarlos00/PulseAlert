@@ -26,6 +26,7 @@ import com.aguirre.pulsealert.ui.home.HomeScreen
 import com.aguirre.pulsealert.ui.messages.MessagesScreen
 import com.aguirre.pulsealert.ui.messages.MessagesViewModel
 import com.aguirre.pulsealert.ui.settings.SettingsScreen
+import com.aguirre.pulsealert.ui.wifi.WifiInfoScreen
 
 /**
  * Composable raíz de la navegación.
@@ -68,11 +69,17 @@ fun AppNavigation() {
             composable(Screen.Home.route) {
                 HomeScreen()
             }
+
             composable(Screen.Messages.route) {
                 // Pasamos el mismo viewModel para que comparta estado
                 // con el que ya está vivo en AppNavigation.
                 MessagesScreen(viewModel = messagesViewModel)
             }
+
+            composable(Screen.Wifi.route) {
+                WifiInfoScreen()
+            }
+
             composable(Screen.Settings.route) {
                 SettingsScreen()
             }
