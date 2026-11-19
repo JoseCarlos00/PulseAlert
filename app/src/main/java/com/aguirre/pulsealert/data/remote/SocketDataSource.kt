@@ -69,9 +69,11 @@ enum class ConnectionState {
 }
 
 data class HeartbeatStatus(
-    val lastAckMs: Long = 0L,     // epoch del último ACK recibido
+    val lastAckMs: Long = 0L,       // epoch del último ACK recibido
     val latencyMs: Long = -1L,
-    val missed: Int = 0
+    val missed: Int = 0,
+    val zone: String? = null,       // lo que responde el servidor
+    val wifi: WifiSnapshot? = null  // lo que envió la app en este heartbeat
 )
 
 // ── SocketDataSource ──────────────────────────────────────────────────────────
@@ -319,24 +321,29 @@ class SocketDataSource(
     private fun startHeartbeat(s: Socket) {
         heartbeatJob?.cancel()
         _heartbeatStatus.value = HeartbeatStatus()
+
         heartbeatJob = scope.launch {
             var missed = 0
 
             while (isActive) {
-                delay(HEARTBEAT_INTERVAL_MS.milliseconds)
-                if (!s.connected()) continue   // emit() con socket caído solo encola
+                if (!s.connected()) { delay(HEARTBEAT_INTERVAL_MS.milliseconds); continue }
 
+                val snap = wifiProvider.capture()
                 val sentAt = SystemClock.elapsedRealtime()
-                val ack = sendHeartbeat(s, buildHeartbeatPayload())
+                val ack = sendHeartbeat(s, buildHeartbeatPayload(snap))
 
                 if (ack != null) {
                     missed = 0
+                    val zone = if (ack.isNull("zone")) null
+                    else ack.optString("zone").takeIf { it.isNotBlank() }
+
                     _heartbeatStatus.value = HeartbeatStatus(
                         lastAckMs = System.currentTimeMillis(),
                         latencyMs = SystemClock.elapsedRealtime() - sentAt,
-                        missed = 0
+                        missed = 0,
+                        zone = zone,
+                        wifi = snap
                     )
-                    // Si algún evento perdió el estado, el ACK es prueba de vida
                     if (_connectionState.value != ConnectionState.CONNECTED) {
                         _connectionState.tryEmit(ConnectionState.CONNECTED)
                     }
@@ -356,7 +363,7 @@ class SocketDataSource(
         }
     }
 
-    // ── Listeners de eventos entrantes ────────────────────────────────
+    // —— Listeners de eventos entrantes ————————————————————————————
 
     private fun registerIncomingEventListeners(socket: Socket) {
         
@@ -564,16 +571,15 @@ class SocketDataSource(
         }
 
     @RequiresApi(Build.VERSION_CODES.R)
-    private fun buildHeartbeatPayload(): JSONObject {
-        val snap = wifiProvider.capture()
+    private fun buildHeartbeatPayload(snap: WifiSnapshot): JSONObject {
         val roamedFrom = if (lastBssid != null && snap.bssid != null && snap.bssid != lastBssid) lastBssid else null
         snap.bssid?.let { lastBssid = it }
 
         return JSONObject().apply {
             put("androidId", androidId)
             put("clientTime", System.currentTimeMillis())
-            put("ipAddress", snap.ipAddress)          // IP fresca
-            put("wifi", snap.toJson(roamedFrom))      // ver punto 3
+            put("ipAddress", snap.ipAddress)
+            put("wifi", snap.toJson(roamedFrom))
         }
     }
 
