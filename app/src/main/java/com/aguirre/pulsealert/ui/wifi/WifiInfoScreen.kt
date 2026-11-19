@@ -31,6 +31,7 @@ import java.util.Locale
 fun WifiInfoScreen(viewModel: WifiInfoViewModel = viewModel()) {
     val status by viewModel.status.collectAsStateWithLifecycle()
     val wifi = status.wifi
+    val roamedFrom = status.roamedFrom
 
     Column(
         modifier = Modifier
@@ -84,6 +85,7 @@ fun WifiInfoScreen(viewModel: WifiInfoViewModel = viewModel()) {
                     Field("Canal", "${wifi.channel}  (${wifi.frequencyMhz} MHz)")
                     Field("Velocidad de enlace", "${wifi.linkSpeedMbps} Mbps")
                     Field("Estándar", wifiStandardName(wifi.standard))
+                    Field("RoamedFrom", roamedFrom ?: "—")
                 }
                 Field("IP", wifi?.ipAddress ?: "—")
             }

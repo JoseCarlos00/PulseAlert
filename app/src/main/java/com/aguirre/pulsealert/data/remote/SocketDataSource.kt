@@ -73,7 +73,8 @@ data class HeartbeatStatus(
     val latencyMs: Long = -1L,
     val missed: Int = 0,
     val zone: String? = null,       // lo que responde el servidor
-    val wifi: WifiSnapshot? = null  // lo que envió la app en este heartbeat
+    val wifi: WifiSnapshot? = null,  // lo que envió la app en este heartbeat
+    val roamedFrom: String? = null
 )
 
 // ── SocketDataSource ──────────────────────────────────────────────────────────
@@ -326,11 +327,25 @@ class SocketDataSource(
             var missed = 0
 
             while (isActive) {
-                if (!s.connected()) { delay(HEARTBEAT_INTERVAL_MS.milliseconds); continue }
+                if (!s.connected()) {
+                    delay(HEARTBEAT_INTERVAL_MS.milliseconds)
+                    continue
+                }
 
                 val snap = wifiProvider.capture()
+
+                // Detectar cambio de BSSID
+                val roamedFrom = if (
+                    lastBssid != null &&
+                    snap.bssid != null &&
+                    snap.bssid != lastBssid
+                ) lastBssid else null
+
+                snap.bssid?.let { lastBssid = it }
+
                 val sentAt = SystemClock.elapsedRealtime()
-                val ack = sendHeartbeat(s, buildHeartbeatPayload(snap))
+
+                val ack = sendHeartbeat(s, buildHeartbeatPayload(snap, roamedFrom))
 
                 if (ack != null) {
                     missed = 0
@@ -342,7 +357,8 @@ class SocketDataSource(
                         latencyMs = SystemClock.elapsedRealtime() - sentAt,
                         missed = 0,
                         zone = zone,
-                        wifi = snap
+                        wifi = snap,
+                        roamedFrom = roamedFrom
                     )
                     if (_connectionState.value != ConnectionState.CONNECTED) {
                         _connectionState.tryEmit(ConnectionState.CONNECTED)
@@ -571,10 +587,7 @@ class SocketDataSource(
         }
 
     @RequiresApi(Build.VERSION_CODES.R)
-    private fun buildHeartbeatPayload(snap: WifiSnapshot): JSONObject {
-        val roamedFrom = if (lastBssid != null && snap.bssid != null && snap.bssid != lastBssid) lastBssid else null
-        snap.bssid?.let { lastBssid = it }
-
+    private fun buildHeartbeatPayload(snap: WifiSnapshot, roamedFrom: String?): JSONObject {
         return JSONObject().apply {
             put("androidId", androidId)
             put("clientTime", System.currentTimeMillis())
